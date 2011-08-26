@@ -20,32 +20,38 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.as.testsuite.integration.jpa.hibernate.selectiveEnvers;
+package org.jboss.as.testsuite.integration.jpa.hibernate.envers;
 
 import javax.persistence.Entity;
+import javax.persistence.*;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
-
+import java.util.HashSet;
+import java.util.Set;
 import org.hibernate.envers.Audited;
 /**
  * @author Madhumita Sadhukhan
  */
 @Entity
+@Table( name = "ORG")
 public class Organization {
 	     
 	  @Id
 	  @GeneratedValue
 	  @Audited	
 	  private int id;
-          @Audited
-	  private String name;
-          private String type;
-          @Audited
-          private String startDate;
-          private String endDate;
-          private String location;
-         
+	  
+      @Audited
+      @Column(name = "ORG_NAME")
+      private String name;
+      private String type;
+      
+      @Audited
+      private String startDate;
+      private String endDate;
+      private String location;
+                 
          
 
 		
@@ -96,6 +102,8 @@ public class Organization {
 		public void setLocation(String location) {
 			this.location = location;
 		}
+
+			
 
 				
 
