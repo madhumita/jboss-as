@@ -33,7 +33,8 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import static org.junit.Assert.assertTrue;
-
+import java.util.HashSet;
+import java.util.Set;
 import java.sql.Connection;
 
 import javax.naming.InitialContext;
@@ -70,30 +71,12 @@ public class BasicSelectiveEnversTestCase {
 					"    </properties>" +
 					"  </persistence-unit>" +
 					"</persistence>";
-	/*private static final String persistence_xml =
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?> " +
-            "<persistence xmlns=\"http://java.sun.com/xml/ns/persistence\" version=\"1.0\">" +
-            "  <persistence-unit name=\"myOrg\">" +
-            "    <description>Persistence Unit." +
-            "    </description>" +
-            "  <jta-data-source>java:jboss/datasources/ExampleDS</jta-data-source>" +
-            "<properties> <property name=\"hibernate.hbm2ddl.auto\" value=\"create-drop\"/>" +
-            //"<property name=\"hibernate.show_sql\" value=\"true\"/>" +
-            //"<property name=\"jboss.as.jpa.providerModule\" value=\"hibernate3-bundled\"/>" +
-            //"<property name=\"hibernate.ejb.event.post-insert\" value=\"org.hibernate.ejb.event.EJB3PostInsertEventListener,org.hibernate.envers.event.AuditEventListener\"/>"+
-            //"<property name=\"hibernate.ejb.event.post-update\" value=\"org.hibernate.ejb.event.EJB3PostUpdateEventListener,org.hibernate.envers.event.AuditEventListener\"/>"+
-            //"<property name=\"hibernate.ejb.event.post-delete\" value=\"org.hibernate.ejb.event.EJB3PostDeleteEventListener,org.hibernate.envers.event.AuditEventListener\"/>"+
-            "<property name=\"hibernate.ejb.event.pre-collection-update\" value=\"org.hibernate.envers.event.AuditEventListener\"/>"+
-            "<property name=\"hibernate.ejb.event.pre-collection-remove\" value=\"org.hibernate.envers.event.AuditEventListener\"/>"+
-            "<property name=\"hibernate.ejb.event.post-collection-recreate\" value=\"org.hibernate.envers.event.AuditEventListener\"/>"+
-            "</properties>" +
-            "  </persistence-unit>" +
-            "</persistence>";*/
+
 
 	
     @ArquillianResource
     private static InitialContext iniCtx;
-
+    
     @BeforeClass
     public static void beforeClass() throws NamingException {
         iniCtx = new InitialContext();
@@ -115,8 +98,34 @@ public class BasicSelectiveEnversTestCase {
 
 		
 	@Test
-	public void testSimpleSelectiveEnversOperation() throws Exception {
+	public void testSelectiveEnversOperationonAuditedandNonAuditedProperty() throws Exception {
         SLSBOrg slsbOrg = lookup("SLSBOrg",SLSBOrg.class);
+        
+        
+		Organization o1= slsbOrg.createOrg("REDHAT", "Software Co", "10/10/1994", "eternity","Raleigh" );
+		Organization o2= slsbOrg.createOrg("HALDIRAMS", "Food Co", "10/10/1974", "eternity","Delhi" );		
+		o2.setStartDate("10/10/1924");
+		o2.setName("BIKANER");
+		
+		slsbOrg.updateOrg( o2 );
+		
+		Organization ret1 = slsbOrg.retrieveOldOrgbyId( o2.getId() );
+		//check that property startDate is audited
+		Assert.assertEquals("10/10/1974", ret1.getStartDate());
+		Assert.assertEquals("HALDIRAMS", ret1.getName());
+		//check that property location is notaudited
+		Assert.assertNull(ret1.getLocation());
+		
+      
+
+	}
+	
+	
+	@Test
+	public void testSelectiveEnversOperationonFetchbyEntityName() throws Exception {
+        SLSBOrg slsbOrg = lookup("SLSBOrg",SLSBOrg.class);
+        
+          
 		Organization o1= slsbOrg.createOrg("REDHAT", "Software Co", "10/10/1994", "eternity","raleigh" );
 		Organization o2= slsbOrg.createOrg("HALDIRAMS", "Food Co", "10/10/1974", "eternity","India" );
 		
@@ -125,14 +134,41 @@ public class BasicSelectiveEnversTestCase {
 		
 		slsbOrg.updateOrg( o2 );
 		
-		Organization ret1 = slsbOrg.retrieveOldOrgbyId( o2.getId() );
-		Assert.assertNotNull(ret1);
-                Organization ret2= slsbOrg.retrieveOldOrgbyName( "name",o2.getId() ); 
-		Assert.assertNotNull(ret2); 
+		Organization ret1 = slsbOrg.retrieveOldOrgbyEntityName( Organization.class.getName(),  o2.getId() );
+		//check that fetch by Entityname works
+        Assert.assertNotNull(ret1.getName());
+		
 
 	}
 	
-	
+	@Test
+	public void testEnversOperationonDelete() throws Exception {
+        SLSBOrg slsbOrg = lookup("SLSBOrg",SLSBOrg.class);
+        
+               
+        /*Set phoneNumbers = new HashSet( );
+        phoneNumbers.add("1234567");
+        phoneNumbers.add("723567987");*/
+        
+		Organization o1= slsbOrg.createOrg("REDHAT", "Software Co", "10/10/1994", "eternity","Raleigh" );
+			
+		o1.setStartDate("10/10/1924");
+		//o1.setName("SUN");
+		
+		slsbOrg.updateOrg( o1 );
+		slsbOrg.deleteOrg( o1 );
+		
+		Organization ret1 = slsbOrg.retrieveDeletedOrgbyId( o1.getId() );
+		//check that revisions of deleted entity can be retrieved 
+		Assert.assertNotNull(ret1.getName());
+		Assert.assertEquals("10/10/1924", ret1.getStartDate());
+		
+		
+		
+		
+      
+
+	}
 	
 	
 }
