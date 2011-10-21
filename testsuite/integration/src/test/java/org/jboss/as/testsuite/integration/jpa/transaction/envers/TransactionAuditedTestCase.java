@@ -139,8 +139,8 @@ public class TransactionAuditedTestCase {
             sfsb1.updateEmployeeTx("Schwaigrova 2 Brno CZ" , emp);
             //sfsb1.updateEmployeeTx("40 Patrice Lumumby Ostrava CZ" , emp);
 	    String address = sfsb1.retrieveOldEmployeeVersionforRollBack( emp.getId() );
-	    assertEquals( "Vratimovska 689", address );
-            System.out.println("JTA address for rollback:--" +address); 
+	    assertEquals( "136 Garia Station Rd", address );
+            
             //assertEquals( "40 Patrice Lumumby", address );
         } catch (TransactionRequiredException e) {
             error = e;

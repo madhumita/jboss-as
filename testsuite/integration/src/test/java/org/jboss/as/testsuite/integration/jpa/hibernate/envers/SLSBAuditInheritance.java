@@ -38,21 +38,18 @@ public class SLSBAuditInheritance {
 
         
 
-	public SoccerPlayer updateSoccerPlayer(SoccerPlayer p,String clubName) {
-		
-		
-               
-		p.setClubName(clubName);
-        	
+	public SoccerPlayer updateSoccerPlayer(SoccerPlayer p) {
+		   
+		     	
                 em.merge( p );
 		return p;
 	}
 	     
 	       
-	public List retrieveSoccerPlayerbyId(int id) {
+	public SoccerPlayer retrieveSoccerPlayerbyId(int id) {
 
 		AuditReader reader = AuditReaderFactory.get( em );
-		List val = reader.getRevisions( SoccerPlayer.class,id);
+		SoccerPlayer val = reader.find( SoccerPlayer.class,id,1);
 		return val;
 	}
 	

@@ -6,8 +6,7 @@ import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.Query;
 import javax.persistence.PersistenceContext;
-import java.util.HashSet;
-import java.util.Set;
+import org.hibernate.mapping.Column;
 import org.hibernate.envers.query.AuditQuery;
 import org.hibernate.envers.AuditReader;
 import org.hibernate.envers.AuditReaderFactory;
@@ -93,9 +92,9 @@ public class SLSBAudit
 	AuditReader reader = AuditReaderFactory.get( em );
         boolean b;
         String queryString = "select a.originalId.REV from "+ "CUSTOMER_PHONE" +"_AUD a";
+	//String queryString = "select column_name from information_schema.columns where table_name = 'CUSTOMER_PHONE_AUD'";
         Query query = em.createQuery(queryString);
-       
-	List<Object> custHistory = query.getResultList();
+        List<Object> custHistory = query.getResultList();   
         return custHistory;
 		
 	}
@@ -113,16 +112,19 @@ public class SLSBAudit
 		
 	}
 
-        public List<Object> verifyOtherFields() {
+        public List<Object> verifyOtherFields(int id) {
 
 	AuditReader reader = AuditReaderFactory.get( em );
         boolean b;
-        String queryString = "select a.PHONE_ID from CUSTOMER_PHONE_AUD a";
+
+        Customer cust1_rev = reader.find( Customer.class,id, 3 );
+        String queryString = "select a.originalId.phones_id from CUSTOMER_PHONE_AUD a";
+	//String queryString = "select column_name from information_schema.columns where table_name = 'CUSTOMER_PHONE_AUD'";
         Query query = em.createQuery(queryString);
        
 	List<Object> custHistory = query.getResultList();
-        return custHistory;
-		
-	}
+      
 
+        return custHistory;
+	}
 }

@@ -52,6 +52,8 @@ import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.hibernate.ejb.Ejb3Configuration;
+import org.hibernate.mapping.Column;
 
 
 /**
@@ -189,12 +191,21 @@ public class AuditJoinTableoverOnetoManyJoinColumnTest {
 
                 //verify size
                 Assert.assertEquals(3, custHistory.size());
+
+                
+		//adding conf
+
+                /*Ejb3Configuration cfg = new Ejb3Configuration();
+                cfg.configure(persistence_xml);
+        	//Iterator<Column> columns = cfg.getClassMapping("CUSTOMER_PHONE_AUD").getTable().getColumnIterator();
+		Assert.assertNotNull(cfg.getClassMapping("CUSTOMER_PHONE_AUD"));*/
+                  
                 
 
                 for ( Object revisionEntity : custHistory) {
 			
 			Assert.assertNotNull(revisionEntity);
-			DefaultRevisionEntity rev = (DefaultRevisionEntity) revisionEntity;
+                        DefaultRevisionEntity rev = (DefaultRevisionEntity) revisionEntity;
 			Assert.assertNotNull(rev);
                         Date revTimestamp = rev.getRevisionDate();
                         Assert.assertNotNull(revTimestamp);
@@ -221,11 +232,21 @@ public class AuditJoinTableoverOnetoManyJoinColumnTest {
 			
 		}
 
-                List<Object> custRevFields = slsbAudit.verifyOtherFields();
-		Assert.assertNotNull(custRevFields);
+                //List<Object> custRevFields = slsbAudit.verifyOtherFields();
+		//Assert.assertNotNull(custRevFields);
+                List<Object> phHistory = slsbAudit.verifyOtherFields(c1.getId());
+		Assert.assertNotNull(phHistory);
 
                 
-               
+                
+        	for ( Object phoneIdEntity : phHistory) {
+			
+			
+			
+                  System.out.println("revendPhoneID::--" +phoneIdEntity.toString());	
+			
+			
+		}
 		
       
 
