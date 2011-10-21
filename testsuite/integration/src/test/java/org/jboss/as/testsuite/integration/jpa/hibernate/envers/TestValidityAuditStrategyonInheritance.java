@@ -107,7 +107,7 @@ public class TestValidityAuditStrategyonInheritance {
         return interfaceType.cast(iniCtx.lookup("java:global/" + ARCHIVE_NAME + "/" + beanName + "!" + interfaceType.getName()));
     }
 
-
+    /*Ensure that auditing works for inherited attributes */
     @Test
     public void testValidityStrategyonInheritance() throws Exception {
         //em.getTransaction().begin();
@@ -115,14 +115,21 @@ public class TestValidityAuditStrategyonInheritance {
 
                  
         SoccerPlayer socplayer = slsb.createSoccerPlayer("LEONARDO","MESSI","SOCCER","REAL MADRID");
-
+         
+        socplayer.setFirstName("Christiano");
+        socplayer.setLastName("Ronaldo");
+        socplayer.setGame("FOOTBALL");  
         // update Player
-        socplayer = slsb.updateSoccerPlayer(socplayer, "BARCELONA");
+        //socplayer = slsb.updateSoccerPlayer(socplayer, "BARCELONA");
+        socplayer = slsb.updateSoccerPlayer(socplayer);
         
-	List val = slsb.retrieveSoccerPlayerbyId(socplayer.getId());
+	SoccerPlayer val = slsb.retrieveSoccerPlayerbyId(socplayer.getId());
 	Assert.assertNotNull(val);
-        Assert.assertEquals(2,val.size()); 
-	
+       // Assert.assertEquals(2,val.size()); 
+	Assert.assertEquals("LEONARDO", val.getFirstName());
+	Assert.assertEquals("MESSI", val.getLastName());
+
+        Assert.assertNull(val.getGame());
 			
 		               
     }

@@ -36,7 +36,7 @@ import org.hibernate.envers.NotAudited;
 @Table(name="PLAYER")
 @Inheritance(strategy = InheritanceType.JOINED)
 
-public class Player {
+public class Player{
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -57,7 +57,7 @@ public class Player {
         return id;
     }
 
-    public String getFirstName() {
+    public String getFirstName(){
         return firstName;
     }
 
