@@ -81,18 +81,18 @@ public class SLSBAuditMO
 
         public String retrieveOldPhoneListVersionFromCustomer(int id) {
 		AuditReader reader = AuditReaderFactory.get( em );
-		CustomerMO cust_rev = reader.find( CustomerMO.class, id, 2 );
+		CustomerMO cust_rev = reader.find( CustomerMO.class, id, 1 );
 		return cust_rev.getPhones().get(1).getType();
 	}
 
 
 	    
 
-        public List<Object> verifyRevision() {
+        /*public List<Object> verifyRevision() {
 
 	AuditReader reader = AuditReaderFactory.get( em );
         boolean b;
-        String queryString = "select a.originalId.REV from "+ "CUSTOMER_PHONE_BI" +"_AUD a";
+        String queryString = "select a.originalId.REV from "+ CustomerMO.class.getName() + "_" + PhoneMO.class.getName() +"_AUD a";
         Query query = em.createQuery(queryString);
        
 	List<Object> custHistory = query.getResultList();
@@ -105,7 +105,7 @@ public class SLSBAuditMO
 
 	AuditReader reader = AuditReaderFactory.get( em );
         boolean b;
-        String queryString = "select a.REVTYPE_CUSTOM from CUSTOMER_PHONE_BI_AUD a";
+        String queryString = "select a.REVTYPE_CUSTOM from CUSTOMER_PHONE_AUD a";
 
         Query query = em.createQuery(queryString);
        
@@ -125,6 +125,6 @@ public class SLSBAuditMO
 	List<Object> custHistory = query.getResultList();
         return custHistory;
 		
-	}
+	}*/
 
 }
