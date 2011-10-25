@@ -43,8 +43,8 @@ public class CustomerMO {
     private String surname;
 
     @OneToMany
-    //@JoinTable(name = "CUSTOMER_PHONE", joinColumns = { @JoinColumn(name = "CUST_ID", referencedColumnName="CUST_ID") }, inverseJoinColumns = { @JoinColumn(name = "PHONE_ID", referencedColumnName="PHONE_ID") })
-    //@AuditJoinTable(name = "CUSTOMER_PHONE_AUD",inverseJoinColumns = {@JoinColumn(name="PHONE_ID",referencedColumnName="PHONE_ID")})  
+   // @JoinTable(name = "CUSTOMER_PHONE", joinColumns = { @JoinColumn(name = "CUST_ID", referencedColumnName="CUST_ID") }, inverseJoinColumns = { @JoinColumn(name = "PHONE_ID", referencedColumnName="PHONE_ID") })
+   // @AuditJoinTable(name = "CUSTOMER_PHONE_AUD",inverseJoinColumns = {@JoinColumn(name="PHONE_ID",referencedColumnName="PHONE_ID")})  
      private List<PhoneMO> phones=new ArrayList<PhoneMO>();
   
 

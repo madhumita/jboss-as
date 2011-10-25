@@ -51,7 +51,7 @@ public class SFSB1 {
     @Resource
     SessionContext sessionContext;
 
-    // always throws a TransactionRequiredException
+    //create Employee
     public Employee createEmployeeTx(String name, String address, int id) {
 
 
@@ -70,7 +70,7 @@ public class SFSB1 {
         }
         catch (Exception e) {
             throw new RuntimeException("couldn't start tx" , e);
-            //return emp;
+
         }
 
 
@@ -101,7 +101,7 @@ public class SFSB1 {
     }
 
 
-     public void updateEmployeeTxwithRollBack(String address, Employee emp) {
+     public void updateEmployeeTxwithRollBack(String address, Employee emp){
 
 
         emp.setAddress(address);
@@ -112,16 +112,19 @@ public class SFSB1 {
             em.joinTransaction();
             em.merge(emp);
             em.getTransaction().setRollbackOnly();         // force rollback of transaction
-            
+            tx1.commit();
         }
         catch (Exception e) {
+            
+            System.out.println("Rollback in SFSB1 catch:--");
             throw new RuntimeException("couldn't start tx" , e);
         }
-        finally
+	finally
         {
               String obtainedaddress = retrieveOldEmployeeVersionforRollBack( emp.getId());
-              assertEquals( "136 Garia Station Rd", obtainedaddress );
-              System.out.println("JTA address for rollback in SFSB1:--" +obtainedaddress);
+              assertEquals( "Red Hat Purkynova Brno", obtainedaddress );
+              System.out.println("Rollback in SFSB1 finally:--" +obtainedaddress);
+
          }
 
        

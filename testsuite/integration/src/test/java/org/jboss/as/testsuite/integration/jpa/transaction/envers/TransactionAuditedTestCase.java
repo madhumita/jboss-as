@@ -97,23 +97,23 @@ public class TransactionAuditedTestCase {
      */
     @Test
     public void testAuditingOverTransaction() throws Exception {
-        Throwable error = null;
-        System.out.println("Inside JTA testTransactionRequiredException:--"); 
+
+
         try {
-            System.out.println("Inside JTA testTransactionRequiredException try:--"); 
+
             SFSB1 sfsb1 = lookup("SFSB1", SFSB1.class);
             Employee emp = sfsb1.createEmployeeTx("Madhumita", "1 home street", 1);
-            System.out.println("Inside JTA testTransactionRequiredException after createEmployeeNoTx:--"); 
+
             sfsb1.updateEmployeeTx("40 Patrice Lumumby" , emp);
             sfsb1.updateEmployeeTx("40 Patrice Lumumby Ostrava CZ" , emp);
 	    String address = sfsb1.retrieveOldEmployeeVersion( emp.getId() );
 	    assertEquals( "1 home street", address );
-            System.out.println("JTA address:--" +address); 
+
             //assertEquals( "40 Patrice Lumumby", address );
         } catch (TransactionRequiredException e) {
-            error = e;
+              System.out.println("TransactionRequiredException in catch:--");
         } catch (Exception failed) {
-            error = failed;
+              System.out.println("Exception in catch:--");
         }
         
     }
@@ -127,27 +127,31 @@ public class TransactionAuditedTestCase {
      */
     @Test
     public void testAuditingOverTransactionRollback() throws Exception {
-        Throwable error = null;
-        System.out.println("Inside JTA testTransactionRequiredException:--"); 
+
+	SFSB1 sfsb1 = lookup("SFSB1", SFSB1.class);
+	Employee emp = null;
         try {
-            System.out.println("Inside JTA testTransactionRequiredException try:--"); 
-            SFSB1 sfsb1 = lookup("SFSB1", SFSB1.class);
-            Employee emp = sfsb1.createEmployeeTx("Kaushik", "136 Garia Station Rd", 2);
-            System.out.println("Inside JTA testTransactionRequiredException after createEmployeeNoTx:--"); 
+
+
+            emp = sfsb1.createEmployeeTx("Kaushik", "Red Hat Purkynova Brno", 2);
+
             sfsb1.updateEmployeeTxwithRollBack("Vratimovska 689" , emp);
-            //sfsb1.updateEmployeeTx("Vratimovska 689" , emp);
+            sfsb1.updateEmployeeTx("Vratimovska 689" , emp);
             sfsb1.updateEmployeeTx("Schwaigrova 2 Brno CZ" , emp);
-            //sfsb1.updateEmployeeTx("40 Patrice Lumumby Ostrava CZ" , emp);
-	    String address = sfsb1.retrieveOldEmployeeVersionforRollBack( emp.getId() );
-	    assertEquals( "136 Garia Station Rd", address );
+            sfsb1.updateEmployeeTx("40 Patrice Lumumby Ostrava CZ" , emp);
+	    //String address = sfsb1.retrieveOldEmployeeVersionforRollBack( emp.getId() );
+	    //assertEquals( "Red Hat Purkynova Brno", address );
             
             //assertEquals( "40 Patrice Lumumby", address );
-        } catch (TransactionRequiredException e) {
-            error = e;
-        } catch (Exception failed) {
-            error = failed;
-        }
-       
+        } catch (Exception e) {
+
+
+	      //String obtainedaddress = sfsb1.retrieveOldEmployeeVersionforRollBack( emp.getId());
+
+              
+              System.out.println("Rollback in testAuditingOverTransactionRollback() catch:--");
+
+        } 
     }
 
 

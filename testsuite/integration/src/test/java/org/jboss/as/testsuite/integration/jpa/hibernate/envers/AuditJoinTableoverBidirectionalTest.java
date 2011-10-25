@@ -59,7 +59,7 @@ import org.junit.runner.RunWith;
  */
 @RunWith(Arquillian.class)
 public class AuditJoinTableoverBidirectionalTest {
-	private static final String ARCHIVE_NAME = "jpa_AuditMappedByoverOnetoManyJoinColumnTest";
+	private static final String ARCHIVE_NAME = "jpa_AuditJoinTableoverBidirectionalTest";
 
 	private static final String persistence_xml =
 			"<?xml version=\"1.0\" encoding=\"UTF-8\"?> " +
@@ -107,13 +107,13 @@ public class AuditJoinTableoverBidirectionalTest {
 
 
 
-        	/*@Test
-		public void testRevisionsforValidityStrategyoverOnetoMany() throws Exception {
+        	@Test
+		public void testRevisionsforValidityStrategyoverManytoOne() throws Exception {
                 
-		SLSBAudit slsbAudit = lookup("SLSBAudit",SLSBAudit.class);
+		SLSBAuditMO slsbAudit = lookup("SLSBAuditMO",SLSBAuditMO.class);
         
-		Customer c1= slsbAudit.createCustomer("MADHUMITA", "SADHUKHAN", "WORK", "+420","543789654" );
-		Phone p1 = c1.getPhones().get(1);
+		CustomerMO c1= slsbAudit.createCustomer("MADHUMITA", "SADHUKHAN", "WORK", "+420","543789654" );
+		PhoneMO p1 = c1.getPhones().get(0);
                 p1.setType("Emergency");
                 p1.setCustomer(c1);
                 slsbAudit.updatePhone(p1);
@@ -127,19 +127,10 @@ public class AuditJoinTableoverBidirectionalTest {
 		String phoneType= slsbAudit.retrieveOldPhoneListVersionFromCustomer( c1.getId() );
 
                 //check that updating Phone updates audit information fetched from Customer
-		Assert.assertEquals("Emergency", phoneType);
+		Assert.assertEquals("HOME", phoneType);
 		
-                //Phone p2 = c1.getPhones();
-                slsbAudit.deletePhone(p1);
-		c1.getPhones().remove(p1);
-                
-               	slsbAudit.updateCustomer(c1);
 
-                int check = slsbAudit.retrieveOldPhoneListSizeFromCustomer( c1.getId(), 4 );
-		//check that property startDate is audited
-		Assert.assertEquals(1, check);
-
-                Phone p3 = slsbAudit.createPhone("WORK", "+420","543789654");
+                PhoneMO p3 = slsbAudit.createPhone("WORK", "+420","543789654");
                 p3.setCustomer(c1);
                 slsbAudit.updatePhone(p3);
                 c1.getPhones().add(p3);
@@ -147,18 +138,18 @@ public class AuditJoinTableoverBidirectionalTest {
 
 		
 
-                check = slsbAudit.retrieveOldPhoneListSizeFromCustomer( c1.getId(), 7 );
-		Assert.assertEquals(2, check);
+                int check = slsbAudit.retrieveOldPhoneListSizeFromCustomer( c1.getId(), 7 );
+		Assert.assertEquals(3, check);
                  
 
                   
 
 					
-		}*/
+		}
 
 
 
-		@Test
+		/*@Test
 		public void testRevisionsfromAuditJoinTable() throws Exception {
                 
 		SLSBAuditMO slsbAudit = lookup("SLSBAuditMO",SLSBAuditMO.class);
@@ -181,11 +172,9 @@ public class AuditJoinTableoverBidirectionalTest {
                 //fetch REV	
 		List<Object> custHistory = slsbAudit.verifyRevision();
 
-                //fetch REVType
-                List<Object> custRevisionType = slsbAudit.verifyRevisionType();
-                                                                  
+                                                                                 
 		Assert.assertNotNull(custHistory);
-		Assert.assertNotNull(custRevisionType);
+
 
                 //verify size
                 Assert.assertEquals(3, custHistory.size());
@@ -199,18 +188,48 @@ public class AuditJoinTableoverBidirectionalTest {
                         Date revTimestamp = rev.getRevisionDate();
                         Assert.assertNotNull(revTimestamp);
                         System.out.println(revTimestamp);
-			/*if (rev == null) {
-			Assert.assertNull(revEnd);
-			} else {
 
-			        Assert.assertEquals(rev, revEnd);
-			}*/
-			
 		}	
 
-
-
+              
+               
 		
+      
+
+	}
+	
+	
+
+	
+		@Test
+		public void testRevisionTypeandOtherFieldsfromAuditJoinTable() throws Exception {
+                
+		SLSBAuditMO slsbAudit = lookup("SLSBAuditMO",SLSBAuditMO.class);
+        
+		CustomerMO c1= slsbAudit.createCustomer("MADHUMITA", "SADHUKHAN", "WORK", "+420","543789654"  );
+                PhoneMO p1 = c1.getPhones().get(1);
+                p1.setType("Emergency");
+                slsbAudit.updatePhone(p1);
+                c1.setFirstname("Madhu");  
+                slsbAudit.updateCustomer(c1);
+                
+
+                //delete phone
+                
+                c1.getPhones().remove(p1);
+                slsbAudit.updateCustomer(c1);
+                slsbAudit.deletePhone(p1);
+		Assert.assertEquals(1,c1.getPhones().size());
+
+
+                //fetch REVType
+                List<Object> custRevisionType = slsbAudit.verifyRevisionType();
+                                                                  
+		Assert.assertNotNull(custRevisionType);
+
+               
+
+	
                 for ( Object revisionTypeEntity : custRevisionType) {
 			
 			Assert.assertNotNull(revisionTypeEntity);
@@ -229,15 +248,8 @@ public class AuditJoinTableoverBidirectionalTest {
 		
       
 
-	}
+	}*/
 	
 	
 		
-
-        
-
-	
-	
-	
-	
 }

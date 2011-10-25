@@ -53,7 +53,7 @@ public class SLSBAudit
 		return em.merge( c );
 	}
 
-        public Phone createPhone(String type, String areacode,String phnumber) {
+        /*public Phone createPhone(String type, String areacode,String phnumber) {
 		Phone phone1 = new Phone();
 		phone1.setNumber( phnumber );
 		phone1.setAreacode( areacode );
@@ -61,7 +61,7 @@ public class SLSBAudit
 		em.persist( phone1 );
 
 		return phone1;
-	}
+	}*/
 
 
 	public Phone updatePhone(Phone p) {

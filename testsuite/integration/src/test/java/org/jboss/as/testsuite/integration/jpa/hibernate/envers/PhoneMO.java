@@ -47,7 +47,7 @@ public class PhoneMO {
 
     @ManyToOne
     @JoinTable(name = "CUSTOMER_PHONE", joinColumns = { @JoinColumn(name = "PHONE_ID", referencedColumnName="PHONE_ID") }, inverseJoinColumns = { @JoinColumn(name = "CUST_ID", referencedColumnName="CUST_ID") })
-    @AuditJoinTable(name = "CUSTOMER_PHONE_BI_AUD",inverseJoinColumns = {@JoinColumn(name="CUST_ID",referencedColumnName="CUST_ID")}) 	
+    @AuditJoinTable(name = "CUSTOMER_PHONE_AUD",inverseJoinColumns = {@JoinColumn(name="CUST_ID",referencedColumnName="CUST_ID")}) 	
     private CustomerMO customer;
 
 

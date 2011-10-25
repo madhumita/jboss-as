@@ -183,45 +183,68 @@ public class AuditJoinTableoverOnetoManyJoinColumnTest {
                 //fetch REV	
 		List<Object> custHistory = slsbAudit.verifyRevision();
 
-                //fetch REVType
-                List<Object> custRevisionType = slsbAudit.verifyRevisionType();
-                                                                  
+                                                                              
 		Assert.assertNotNull(custHistory);
-		Assert.assertNotNull(custRevisionType);
+
 
                 //verify size
                 Assert.assertEquals(3, custHistory.size());
 
-                
-		//adding conf
-
-                /*Ejb3Configuration cfg = new Ejb3Configuration();
-                cfg.configure(persistence_xml);
-        	//Iterator<Column> columns = cfg.getClassMapping("CUSTOMER_PHONE_AUD").getTable().getColumnIterator();
-		Assert.assertNotNull(cfg.getClassMapping("CUSTOMER_PHONE_AUD"));*/
-                  
+               
                 
 
                 for ( Object revisionEntity : custHistory) {
 			
 			Assert.assertNotNull(revisionEntity);
                         DefaultRevisionEntity rev = (DefaultRevisionEntity) revisionEntity;
-			Assert.assertNotNull(rev);
+			Assert.assertNotNull(rev); //check if revision obtained is not null
                         Date revTimestamp = rev.getRevisionDate();
                         Assert.assertNotNull(revTimestamp);
                         System.out.println(revTimestamp);
-			/*if (rev == null) {
-			Assert.assertNull(revEnd);
-			} else {
 
-			        Assert.assertEquals(rev, revEnd);
-			}*/
-			
 		}	
 
-
+   
+			
+		}
+		
+      
 
 		
+
+
+
+         
+		@Test
+		public void testRevisionTypefromAuditJoinTable() throws Exception {
+                
+		SLSBAudit slsbAudit = lookup("SLSBAudit",SLSBAudit.class);
+        
+		Customer c1= slsbAudit.createCustomer("MADHUMITA", "SADHUKHAN", "WORK", "+420","543789654"  );
+                Phone p1 = c1.getPhones().get(1);
+                p1.setType("Emergency");
+                slsbAudit.updatePhone(p1);
+                c1.setFirstname("Madhu");  
+                slsbAudit.updateCustomer(c1);
+                
+
+                //delete phone
+                
+                c1.getPhones().remove(p1);
+                slsbAudit.updateCustomer(c1);
+                slsbAudit.deletePhone(p1);
+		Assert.assertEquals(1,c1.getPhones().size());
+
+                
+
+                //fetch REVType
+                List<Object> custRevisionType = slsbAudit.verifyRevisionType();
+                                                                  
+
+		Assert.assertNotNull(custRevisionType);
+
+                                 
+                               		
                 for ( Object revisionTypeEntity : custRevisionType) {
 			
 			Assert.assertNotNull(revisionTypeEntity);
@@ -232,13 +255,40 @@ public class AuditJoinTableoverOnetoManyJoinColumnTest {
 			
 		}
 
+		}
+	
+
+
+		@Test
+		public void testOtherFieldslikeForeignKeysfromAuditJoinTable() throws Exception {
+                
+		SLSBAudit slsbAudit = lookup("SLSBAudit",SLSBAudit.class);
+        
+		Customer c1= slsbAudit.createCustomer("MADHUMITA", "SADHUKHAN", "WORK", "+420","543789654"  );
+                Phone p1 = c1.getPhones().get(1);
+                p1.setType("Emergency");
+                slsbAudit.updatePhone(p1);
+                c1.setFirstname("Madhu");  
+                slsbAudit.updateCustomer(c1);
+                
+
+                //delete phone
+                
+                c1.getPhones().remove(p1);
+                slsbAudit.updateCustomer(c1);
+                slsbAudit.deletePhone(p1);
+		Assert.assertEquals(1,c1.getPhones().size());
+
+
+                
+
                 //List<Object> custRevFields = slsbAudit.verifyOtherFields();
 		//Assert.assertNotNull(custRevFields);
                 List<Object> phHistory = slsbAudit.verifyOtherFields(c1.getId());
 		Assert.assertNotNull(phHistory);
 
                 
-                
+                //just to check correct values are returned
         	for ( Object phoneIdEntity : phHistory) {
 			
 			
@@ -251,7 +301,6 @@ public class AuditJoinTableoverOnetoManyJoinColumnTest {
       
 
 	}
-	
 	
 		
 
