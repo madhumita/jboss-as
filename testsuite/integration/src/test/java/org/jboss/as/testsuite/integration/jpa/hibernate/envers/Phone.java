@@ -25,7 +25,6 @@ package org.jboss.as.testsuite.integration.jpa.hibernate.envers;
 import java.util.*;
 import javax.persistence.*;
 
-
 import org.hibernate.envers.*;
 
 /**
@@ -36,7 +35,7 @@ import org.hibernate.envers.*;
 public class Phone {
     @Id
     @GeneratedValue
-    @Column(name="PHONE_ID")
+    @Column(name = "PHONE_ID")
     private Integer id;
 
     private String type;
@@ -45,70 +44,65 @@ public class Phone {
 
     private String areacode;
 
-    //@ManyToOne
-    //@AuditJoinTable(name = "CustomerPhone",inverseJoinColumns = {@JoinColumn(name="CUST_ID")})
-    //@JoinColumn (name="CUST_ID")
-    //private Customer customer;
+    // @ManyToOne
+    // @AuditJoinTable(name = "CustomerPhone",inverseJoinColumns = {@JoinColumn(name="CUST_ID")})
+    // @JoinColumn (name="CUST_ID")
+    // private Customer customer;
 
+    public String getNumber() {
+        return number;
+    }
 
-	public String getNumber() {
-		return number;
-	}
+    public void setNumber(String number) {
+        this.number = number;
+    }
 
-	public void setNumber(String number) {
-		this.number = number;
-	}
+    public int getId() {
+        return id;
+    }
 
-	public int getId() {
-		return id;
-	}
+    public void setId(int id) {
+        this.id = id;
+    }
 
-	public void setId(int id) {
-		this.id = id;
-	}
+    public String getType() {
+        return type;
+    }
 
-	public String getType() {
-	        return type;
-	}
+    public void setType(String type) {
+        this.type = type;
+    }
 
-	public void setType(String type) {
-		this.type = type;
-	}
+    public String getAreacode() {
+        return areacode;
+    }
 
-        public String getAreacode() {
-		return areacode;
-	}
+    public void setAreacode(String areacode) {
+        this.areacode = areacode;
+    }
 
-	public void setAreacode(String areacode) {
-		this.areacode = areacode;
-	}
+    /*
+     * public Customer getCustomer() { return customer; }
+     * 
+     * public void setCustomer(Customer customer) { this.customer = customer; }
+     */
 
-        /*public Customer getCustomer() {
-		return customer;
-	}
-
-	public void setCustomer(Customer customer) {
-		this.customer = customer;
-	}*/
-
-
-	 @Override
-    	public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Phone)) return false;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (!(o instanceof Phone))
+            return false;
 
         final Phone phone = (Phone) o;
 
         return id != null ? id.equals(phone.id) : phone.id == null;
 
-    	}
+    }
 
-    	@Override
-    	public int hashCode() {
+    @Override
+    public int hashCode() {
         return id != null ? id.hashCode() : 0;
-    	}
-
-       
-
+    }
 
 }

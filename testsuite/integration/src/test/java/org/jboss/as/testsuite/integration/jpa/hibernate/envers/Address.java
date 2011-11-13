@@ -45,39 +45,38 @@ public class Address {
 
     private Integer houseNumber;
 
-
     @OneToMany(mappedBy = "address")
-    private Set<Person> persons = new HashSet<Person>(  );
+    private Set<Person> persons = new HashSet<Person>();
 
-	public Integer getHouseNumber() {
-		return houseNumber;
-	}
+    public Integer getHouseNumber() {
+        return houseNumber;
+    }
 
-	public void setHouseNumber(Integer houseNumber) {
-		this.houseNumber = houseNumber;
-	}
+    public void setHouseNumber(Integer houseNumber) {
+        this.houseNumber = houseNumber;
+    }
 
-	public int getId() {
-		return id;
-	}
+    public int getId() {
+        return id;
+    }
 
-	public void setId(int id) {
-		this.id = id;
-	}
+    public void setId(int id) {
+        this.id = id;
+    }
 
-	public Set<Person> getPersons() {
-		return persons;
-	}
+    public Set<Person> getPersons() {
+        return persons;
+    }
 
-	public void setPersons(Set<Person> persons) {
-		this.persons = persons;
-	}
+    public void setPersons(Set<Person> persons) {
+        this.persons = persons;
+    }
 
-	public String getStreetName() {
-		return streetName;
-	}
+    public String getStreetName() {
+        return streetName;
+    }
 
-	public void setStreetName(String streetName) {
-		this.streetName = streetName;
-	}
+    public void setStreetName(String streetName) {
+        this.streetName = streetName;
+    }
 }

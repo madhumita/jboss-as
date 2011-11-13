@@ -21,7 +21,9 @@
  */
 package org.jboss.as.testsuite.integration.jpa.hibernate.envers;
 
-import javax.ejb.EJB;
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
+
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.arquillian.test.api.ArquillianResource;
@@ -30,110 +32,70 @@ import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.StringAsset;
 import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import static org.junit.Assert.assertTrue;
-import java.util.*;
-import java.util.Set;
-import java.sql.Connection;
-import org.hibernate.envers.DefaultRevisionEntity;
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
-import javax.sql.DataSource;
-import org.hibernate.Session;
-
-import org.jboss.arquillian.container.test.api.Deployment;
-import org.jboss.arquillian.junit.Arquillian;
-import org.jboss.shrinkwrap.api.Archive;
-import org.jboss.shrinkwrap.api.ShrinkWrap;
-import org.jboss.shrinkwrap.api.asset.StringAsset;
-import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
 
 /**
  * @author Madhumita Sadhukhan
  */
 @RunWith(Arquillian.class)
-
-
 public class TestValidityAuditStrategyonInheritance {
 
     private static final String ARCHIVE_NAME = "jpa_TestValidityAuditStrategyonInheritance";
 
-	private static final String persistence_xml =
-			"<?xml version=\"1.0\" encoding=\"UTF-8\"?> " +
-					"<persistence xmlns=\"http://java.sun.com/xml/ns/persistence\" version=\"1.0\">" +
-					"  <persistence-unit name=\"myPlayer\">" +
-					"    <description>Persistence Unit." +
-					"    </description>" +
-					"    <jta-data-source>java:jboss/datasources/ExampleDS</jta-data-source>" +
-					"    <properties> " +
-					"      <property name=\"hibernate.hbm2ddl.auto\" value=\"create-drop\"/>" +
-					"    </properties>" +
-					"    <properties> " +
-					"      <property name=\"org.hibernate.envers.audit_strategy\" " + 
-                                        "      value=\"org.hibernate.envers.strategy.ValidityAuditStrategy\"/>" +
-					"      <property name=\"org.hibernate.envers.audit_strategy_validity_revend_timestamp_field_name\" " + 
-                                        "      value=\"REVEND_VALIDITY\"/>" +
-					"    </properties>" +
-					"  </persistence-unit>" +
-					"</persistence>";
+    private static final String persistence_xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
+            + "<persistence xmlns=\"http://java.sun.com/xml/ns/persistence\" version=\"1.0\">"
+            + "  <persistence-unit name=\"myPlayer\">" + "    <description>Persistence Unit." + "    </description>"
+            + "    <jta-data-source>java:jboss/datasources/ExampleDS</jta-data-source>" + "    <properties> "
+            + "      <property name=\"hibernate.hbm2ddl.auto\" value=\"create-drop\"/>" + "    </properties>"
+            + "    <properties> " + "      <property name=\"org.hibernate.envers.audit_strategy\" "
+            + "      value=\"org.hibernate.envers.strategy.ValidityAuditStrategy\"/>"
+            + "      <property name=\"org.hibernate.envers.audit_strategy_validity_revend_timestamp_field_name\" "
+            + "      value=\"REVEND_VALIDITY\"/>" + "    </properties>" + "  </persistence-unit>" + "</persistence>";
 
-
-	
     @ArquillianResource
     private static InitialContext iniCtx;
-    
+
     @BeforeClass
     public static void beforeClass() throws NamingException {
         iniCtx = new InitialContext();
     }
-	@Deployment
-	public static Archive<?> deploy() {
-		JavaArchive jar = ShrinkWrap.create( JavaArchive.class, ARCHIVE_NAME + ".jar" );
-		jar.addClasses(
-				Player.class,
-				SoccerPlayer.class,
-				SLSBAuditInheritance.class
-		);
-		jar.add( new StringAsset( persistence_xml ), "META-INF/persistence.xml" );
-		return jar;
-	}
-	
-	protected static <T> T lookup(String beanName, Class<T> interfaceType) throws NamingException {
-        return interfaceType.cast(iniCtx.lookup("java:global/" + ARCHIVE_NAME + "/" + beanName + "!" + interfaceType.getName()));
+
+    @Deployment
+    public static Archive<?> deploy() {
+        JavaArchive jar = ShrinkWrap.create(JavaArchive.class, ARCHIVE_NAME + ".jar");
+        jar.addClasses(Player.class, SoccerPlayer.class, SLSBAuditInheritance.class);
+        jar.add(new StringAsset(persistence_xml), "META-INF/persistence.xml");
+        return jar;
     }
 
-    /*Ensure that auditing works for inherited attributes */
+    protected static <T> T lookup(String beanName, Class<T> interfaceType) throws NamingException {
+        return interfaceType
+                .cast(iniCtx.lookup("java:global/" + ARCHIVE_NAME + "/" + beanName + "!" + interfaceType.getName()));
+    }
+
+    /* Ensure that auditing works for inherited attributes */
     @Test
     public void testValidityStrategyonInheritance() throws Exception {
-        //em.getTransaction().begin();
-	SLSBAuditInheritance slsb = lookup("SLSBAuditInheritance",SLSBAuditInheritance.class);
 
-                 
-        SoccerPlayer socplayer = slsb.createSoccerPlayer("LEONARDO","MESSI","SOCCER","REAL MADRID");
-         
+        SLSBAuditInheritance slsb = lookup("SLSBAuditInheritance", SLSBAuditInheritance.class);
+
+        SoccerPlayer socplayer = slsb.createSoccerPlayer("LEONARDO", "MESSI", "SOCCER", "REAL MADRID");
+
         socplayer.setFirstName("Christiano");
         socplayer.setLastName("Ronaldo");
-        socplayer.setGame("FOOTBALL");  
+        socplayer.setGame("FOOTBALL");
         // update Player
-        //socplayer = slsb.updateSoccerPlayer(socplayer, "BARCELONA");
         socplayer = slsb.updateSoccerPlayer(socplayer);
-        
-	SoccerPlayer val = slsb.retrieveSoccerPlayerbyId(socplayer.getId());
-	Assert.assertNotNull(val);
-       // Assert.assertEquals(2,val.size()); 
-	Assert.assertEquals("LEONARDO", val.getFirstName());
-	Assert.assertEquals("MESSI", val.getLastName());
+
+        SoccerPlayer val = slsb.retrieveSoccerPlayerbyId(socplayer.getId());
+        Assert.assertNotNull(val);
+        Assert.assertEquals("LEONARDO", val.getFirstName());
+        Assert.assertEquals("MESSI", val.getLastName());
 
         Assert.assertNull(val.getGame());
-			
-		               
+
     }
 
 }
-
-

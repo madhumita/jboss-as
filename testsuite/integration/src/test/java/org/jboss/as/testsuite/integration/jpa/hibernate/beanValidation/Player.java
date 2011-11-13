@@ -19,80 +19,81 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
+package org.jboss.as.testsuite.integration.jpa.hibernate.beanValidation;
+import java.util.HashSet;
+import java.util.Set;
 
-package org.jboss.as.testsuite.integration.jpa.hibernate.envers;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.OneToMany;
-
+import javax.persistence.*;
 import org.hibernate.envers.Audited;
-
+import org.hibernate.envers.NotAudited;
+import org.hibernate.validator.*;
+import org.hibernate.validator.constraints.*;
 /**
  * @author Madhumita Sadhukhan
  */
+
 @Entity
 @Audited
-public class CustomerMO {
+@Table(name="PLAYER")
+@Inheritance(strategy = InheritanceType.JOINED)
+
+public class Player{
+
     @Id
-    @GeneratedValue
-    @Column(name = "CUST_ID")
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column( name = "PLAYER_ID" )	
     private Integer id;
 
-    private String firstname;
+    @Column(length = 30)
+    protected String firstName;
 
-    private String surname;
+    @Column(length = 30)
+    @NotBlank
+    @NotEmpty
+    protected String lastName;
 
-    @OneToMany
-    private List<PhoneMO> phones = new ArrayList<PhoneMO>();
+    @NotAudited
+    
+    protected String game;
 
-    public int getId() {
+        
+    public Integer getId() {
         return id;
     }
 
-    public void setId(int id) {
-        this.id = id;
+    public String getFirstName(){
+        return firstName;
     }
 
-    public String getFirstname() {
-        return firstname;
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
     }
 
-    public void setFirstname(String firstname) {
-        this.firstname = firstname;
+    public String getLastName() {
+        return lastName;
     }
 
-    public String getSurname() {
-        return surname;
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
     }
 
-    public void setSurname(String surname) {
-        this.surname = surname;
+    public String getGame() {
+        return game;
     }
 
-    public List<PhoneMO> getPhones() {
-        return phones;
+    public void setGame(String game) {
+        this.game = game;
     }
 
-    public void setSurname(List<PhoneMO> phones) {
-        this.phones = phones;
-    }
-
+   
     @Override
     public boolean equals(Object o) {
-        if (this == o)
-            return true;
-        if (!(o instanceof CustomerMO))
-            return false;
+        if (this == o) return true;
+        if (!(o instanceof Player)) return false;
 
-        final CustomerMO cust = (CustomerMO) o;
+        final Player player = (Player) o;
 
-        return id != null ? id.equals(cust.id) : cust.id == null;
+        return id != null ? id.equals(player.id) : player.id == null;
 
     }
 
@@ -101,4 +102,7 @@ public class CustomerMO {
         return id != null ? id.hashCode() : 0;
     }
 
+    
 }
+
+

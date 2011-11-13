@@ -19,29 +19,39 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.jboss.as.testsuite.integration.jpa.hibernate.envers;
+package org.jboss.as.testsuite.integration.jpa.hibernate.beanValidation;
 
 import javax.persistence.*;
 
 import org.hibernate.envers.Audited;
-
+import org.hibernate.validator.*;
+import org.hibernate.validator.constraints.*;
 /**
  * @author Madhumita Sadhukhan
  */
 
+
 @Entity
 @Audited
-@Table(name = "SOCCERPLAYER")
-@PrimaryKeyJoinColumn(name = "SOCCERPLAYER_ID")
-public class SoccerPlayer extends Player {
+@Table( name = "SOCCERPLAYER" )
+@PrimaryKeyJoinColumn( name = "SOCCERPLAYER_ID" )
+public class SoccerPlayer extends Player
+{
 
+
+    @NotBlank
     private String clubName;
 
-    public String getClubName() {
+  
+
+    public String getClubName()
+    {
         return clubName;
     }
 
-    public void setClubName(String clubName) {
+    
+    public void setClubName( String clubName )
+    {
         this.clubName = clubName;
     }
 }
