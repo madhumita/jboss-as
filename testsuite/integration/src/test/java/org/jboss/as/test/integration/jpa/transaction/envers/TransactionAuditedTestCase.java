@@ -20,11 +20,9 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.as.testsuite.integration.jpa.transaction.envers;
+package org.jboss.as.test.integration.jpa.transaction.envers;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
@@ -37,13 +35,12 @@ import org.jboss.shrinkwrap.api.Archive;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.StringAsset;
 import org.jboss.shrinkwrap.api.spec.JavaArchive;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 /**
  * Transaction tests
- *
+ * 
  * @author Madhumita Sadhukhan
  */
 @RunWith(Arquillian.class)
@@ -51,26 +48,18 @@ public class TransactionAuditedTestCase {
 
     private static final String ARCHIVE_NAME = "jpa_sessionfactory";
 
-    private static final String persistence_xml =
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?> " +
-            "<persistence xmlns=\"http://java.sun.com/xml/ns/persistence\" version=\"1.0\">" +
-            "  <persistence-unit name=\"mypc\">" +
-            "    <description>Persistence Unit." +
-            "    </description>" +
-            "  <jta-data-source>java:jboss/datasources/ExampleDS</jta-data-source>" +
-            "<properties> <property name=\"hibernate.hbm2ddl.auto\" value=\"create-drop\"/>" +
-            "</properties>" +
-            "  </persistence-unit>" +
-            "</persistence>";
+    private static final String persistence_xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
+            + "<persistence xmlns=\"http://java.sun.com/xml/ns/persistence\" version=\"1.0\">"
+            + "  <persistence-unit name=\"mypc\">" + "    <description>Persistence Unit." + "    </description>"
+            + "  <jta-data-source>java:jboss/datasources/ExampleDS</jta-data-source>"
+            + "<properties> <property name=\"hibernate.hbm2ddl.auto\" value=\"create-drop\"/>" + "</properties>"
+            + "  </persistence-unit>" + "</persistence>";
 
     @Deployment
     public static Archive<?> deploy() {
 
         JavaArchive jar = ShrinkWrap.create(JavaArchive.class, ARCHIVE_NAME + ".jar");
-        jar.addClasses(TransactionAuditedTestCase.class,
-            Employee.class,
-            SFSB1.class
-                   );
+        jar.addClasses(TransactionAuditedTestCase.class, Employee.class, SFSB1.class);
 
         jar.addAsResource(new StringAsset(persistence_xml), "META-INF/persistence.xml");
         return jar;
@@ -79,82 +68,63 @@ public class TransactionAuditedTestCase {
     @ArquillianResource
     private static InitialContext iniCtx;
 
-
     protected <T> T lookup(String beanName, Class<T> interfaceType) throws NamingException {
-        return interfaceType.cast(iniCtx.lookup("java:global/" + ARCHIVE_NAME + "/" + beanName + "!" + interfaceType.getName()));
+        return interfaceType
+                .cast(iniCtx.lookup("java:global/" + ARCHIVE_NAME + "/" + beanName + "!" + interfaceType.getName()));
     }
 
     protected <T> T rawLookup(String name, Class<T> interfaceType) throws NamingException {
         return interfaceType.cast(iniCtx.lookup(name));
     }
 
-  
-
     /**
      * Ensure that auditing works with transactions
-     *
+     * 
      * 
      */
     @Test
     public void testAuditingOverTransaction() throws Exception {
-
 
         try {
 
             SFSB1 sfsb1 = lookup("SFSB1", SFSB1.class);
             Employee emp = sfsb1.createEmployeeTx("Madhumita", "1 home street", 1);
 
-            sfsb1.updateEmployeeTx("40 Patrice Lumumby" , emp);
-            sfsb1.updateEmployeeTx("40 Patrice Lumumby Ostrava CZ" , emp);
-	    String address = sfsb1.retrieveOldEmployeeVersion( emp.getId() );
-	    assertEquals( "1 home street", address );
-
-            //assertEquals( "40 Patrice Lumumby", address );
+            sfsb1.updateEmployeeTx("40 Patrice Lumumby", emp);
+            sfsb1.updateEmployeeTx("40 Patrice Lumumby Ostrava CZ", emp);
+            String address = sfsb1.retrieveOldEmployeeVersion(emp.getId());
+            assertEquals("1 home street", address);
         } catch (TransactionRequiredException e) {
-              System.out.println("TransactionRequiredException in catch:--");
+            System.out.println("TransactionRequiredException in catch:--");
         } catch (Exception failed) {
-              System.out.println("Exception in catch:--");
+            System.out.println("Exception in catch:--");
         }
-        
+
     }
 
-
-
-     /**
+    /**
      * Ensure that auditing does not save data not committed when a transaction is rolled back
-     *
+     * 
      * @throws Exception
      */
     @Test
     public void testAuditingOverTransactionRollback() throws Exception {
 
-	SFSB1 sfsb1 = lookup("SFSB1", SFSB1.class);
-	Employee emp = null;
+        SFSB1 sfsb1 = lookup("SFSB1", SFSB1.class);
+        Employee emp = null;
         try {
-
 
             emp = sfsb1.createEmployeeTx("Kaushik", "Red Hat Purkynova Brno", 2);
 
-            sfsb1.updateEmployeeTxwithRollBack("Vratimovska 689" , emp);
-            sfsb1.updateEmployeeTx("Vratimovska 689" , emp);
-            sfsb1.updateEmployeeTx("Schwaigrova 2 Brno CZ" , emp);
-            sfsb1.updateEmployeeTx("40 Patrice Lumumby Ostrava CZ" , emp);
-	    //String address = sfsb1.retrieveOldEmployeeVersionforRollBack( emp.getId() );
-	    //assertEquals( "Red Hat Purkynova Brno", address );
-            
-            //assertEquals( "40 Patrice Lumumby", address );
+            sfsb1.updateEmployeeTxwithRollBack("Vratimovska 689", emp);
+            sfsb1.updateEmployeeTx("Vratimovska 689", emp);
+            sfsb1.updateEmployeeTx("Schwaigrova 2 Brno CZ", emp);
+            sfsb1.updateEmployeeTx("40 Patrice Lumumby Ostrava CZ", emp);
         } catch (Exception e) {
 
+            System.out.println("Rollback in testAuditingOverTransactionRollback() catch:--");
 
-	      //String obtainedaddress = sfsb1.retrieveOldEmployeeVersionforRollBack( emp.getId());
-
-              
-              System.out.println("Rollback in testAuditingOverTransactionRollback() catch:--");
-
-        } 
+        }
     }
-
-
-    
 
 }

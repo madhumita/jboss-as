@@ -46,9 +46,7 @@ public class SLSBOrg {
 
         AuditReader reader = AuditReaderFactory.get(em);
         List<Number> revList = reader.getRevisions(Organization.class, id);
-        for (Number revisionNumber : revList) {
-            System.out.println("Available revisionNumber for o2:" + revisionNumber);
-        }
+
         Organization org1_rev = reader.find(Organization.class, id, 2);
         return org1_rev;
     }
@@ -63,9 +61,6 @@ public class SLSBOrg {
         List<Object> custHistory = new ArrayList<Object>();
         AuditQuery query = reader.createQuery().forRevisionsOfEntity(Organization.class, true, true);
         query.add(AuditEntity.revisionType().eq(RevisionType.DEL));
-
-        if (query.getResultList() != null && query.getResultList().size() > 0)
-            System.out.println("Deleted revision:" + query.getResultList().toString());
 
         Organization rev = (Organization) (((List<Object>) (query.getResultList())).toArray()[0]);
 

@@ -20,15 +20,16 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.as.testsuite.integration.jpa.transaction.envers;
+package org.jboss.as.test.integration.jpa.transaction.envers;
 
 import javax.persistence.Entity;
 import javax.persistence.Id;
+
 import org.hibernate.envers.Audited;
 
 /**
  * Employee entity class
- *
+ * 
  * @author Madhumita Sadhukhan
  */
 @Entity

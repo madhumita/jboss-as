@@ -83,7 +83,6 @@ public class BasicSelectiveEnversTestCase {
 
         slsbOrg.updateOrg(o2);
         o1.setStartDate("10/10/1924");
-        // o1.setName("SUN");
 
         slsbOrg.updateOrg(o1);
         slsbOrg.deleteOrg(o1);

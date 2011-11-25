@@ -1,16 +1,15 @@
 package org.jboss.as.test.integration.jpa.hibernate.envers;
 
-import java.util.*;
-import java.lang.*;
+import java.util.List;
+import java.util.Map;
+
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
-import javax.persistence.Query;
 import javax.persistence.PersistenceContext;
-import java.util.HashSet;
-import java.util.Set;
+import javax.persistence.Query;
+
 import org.hibernate.envers.AuditReader;
 import org.hibernate.envers.AuditReaderFactory;
-import org.hibernate.envers.DefaultRevisionEntity;
 
 /**
  * @author Madhumita Sadhukhan
@@ -29,7 +28,6 @@ public class SLSBValidityStrategyOrg {
         org.setStartDate(startDate);
         org.setEndDate(endDate);
         org.setLocation(location);
-        // org.setPhoneNumbers( phones );
         em.persist(org);
         return org;
     }
@@ -47,16 +45,11 @@ public class SLSBValidityStrategyOrg {
         AuditReader reader = AuditReaderFactory.get(em);
         boolean b;
         String queryString = "select a from " + Organization.class.getName() + "_AUD a where a.originalId.id=:id";
-        // where a.originalId.id=:id
         Query query = em.createQuery(queryString);
         query.setParameter("id", id);
         List<Map<String, Object>> orgHistory = query.getResultList();
 
-        // List<Number> p1RevList = reader.getRevisions(Organization.class,id);
-
         return orgHistory;
-        // Organization org1_rev = reader.find( Organization.class,id, 2 );
-        // return revendTimestamp;
     }
 
     public Organization retrieveOldOrgbyId(int id) {

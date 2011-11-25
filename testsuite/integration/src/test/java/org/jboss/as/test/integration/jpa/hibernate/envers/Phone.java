@@ -22,10 +22,12 @@
 
 package org.jboss.as.test.integration.jpa.hibernate.envers;
 
-import java.util.*;
-import javax.persistence.*;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
 
-import org.hibernate.envers.*;
+import org.hibernate.envers.Audited;
 
 /**
  * @author Madhumita Sadhukhan
@@ -43,11 +45,6 @@ public class Phone {
     private String number;
 
     private String areacode;
-
-    // @ManyToOne
-    // @AuditJoinTable(name = "CustomerPhone",inverseJoinColumns = {@JoinColumn(name="CUST_ID")})
-    // @JoinColumn (name="CUST_ID")
-    // private Customer customer;
 
     public String getNumber() {
         return number;
@@ -80,12 +77,6 @@ public class Phone {
     public void setAreacode(String areacode) {
         this.areacode = areacode;
     }
-
-    /*
-     * public Customer getCustomer() { return customer; }
-     * 
-     * public void setCustomer(Customer customer) { this.customer = customer; }
-     */
 
     @Override
     public boolean equals(Object o) {

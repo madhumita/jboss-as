@@ -51,13 +51,6 @@ public class SLSBAudit {
         return em.merge(c);
     }
 
-    /*
-     * public Phone createPhone(String type, String areacode,String phnumber) { Phone phone1 = new Phone(); phone1.setNumber(
-     * phnumber ); phone1.setAreacode( areacode ); phone1.setType( type ); em.persist( phone1 );
-     * 
-     * return phone1; }
-     */
-
     public Phone updatePhone(Phone p) {
         return em.merge(p);
     }
@@ -103,13 +96,6 @@ public class SLSBAudit {
     public List<Object> verifyRevisionType(int id) {
 
         AuditReader reader = AuditReaderFactory.get(em);
-        /*
-         * boolean b; String queryString = "select a.REVTYPE_CUSTOM from CUSTOMER_PHONE_AUD a"; Query query =
-         * em.createQuery(queryString);
-         * 
-         * List<Object> custHistory = query.getResultList();
-         */
-
         List<Object> custHistory = new ArrayList<Object>();
         List<Number> revList = reader.getRevisions(Customer.class, id);
 
