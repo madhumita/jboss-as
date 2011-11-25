@@ -77,12 +77,10 @@ public class TestBeanValidationJPAInheritance {
                 .cast(iniCtx.lookup("java:global/" + ARCHIVE_NAME + "/" + beanName + "!" + interfaceType.getName()));
     }
 
-    /* Ensure that bean validation works for persistent objects */
+    /* Ensure that bean validation works for inheritance across persistent objects */
 
     @Test
     public void testConstraintValidationforJPA() throws NamingException, SQLException {
-        // Validator validator = (Validator) new InitialContext().lookup("java:comp/Validator");
-        // final Set<ConstraintViolation<UserBean>> result = validator.validate(user);
 
         SLSBInheritance slsb = lookup("SLSBInheritance", SLSBInheritance.class);
 
@@ -92,20 +90,15 @@ public class TestBeanValidationJPAInheritance {
             socplayer.setFirstName("Christiano");
             socplayer.setLastName("");
             socplayer.setGame("FOOTBALL");
-            // update Player
-            // socplayer = slsb.updateSoccerPlayer(socplayer, "BARCELONA");
             socplayer = slsb.updateSoccerPlayer(socplayer);
         } catch (Exception e) {
 
             StringWriter w = new StringWriter();
             e.printStackTrace(new PrintWriter(w));
             String stacktrace = w.toString();
-            System.out.println("Obtained stacktrace::--" + stacktrace);
             Assert.assertTrue(stacktrace.contains("interpolatedMessage='may not be empty', propertyPath=lastName"));
         }
 
-        // Assert.assertEquals(3, result.size());
-        // Assert.assertTrue(message.contains("Please get a valid address"));
     }
 
 }
