@@ -20,7 +20,7 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.as.testsuite.integration.jpa.hibernate.envers;
+package org.jboss.as.test.integration.jpa.hibernate.envers;
 
 import javax.persistence.Entity;
 import javax.persistence.*;
@@ -30,81 +30,75 @@ import javax.persistence.ManyToOne;
 import java.util.HashSet;
 import java.util.Set;
 import org.hibernate.envers.Audited;
+
 /**
  * @author Madhumita Sadhukhan
  */
 @Entity
-@Table( name = "ORG")
+@Table(name = "ORG")
 public class Organization {
-	     
-	  @Id
-	  @GeneratedValue
-	  @Audited	
-	  private int id;
-	  
-      @Audited
-      @Column(name = "ORG_NAME")
-      private String name;
-      private String type;
-      
-      @Audited
-      private String startDate;
-      private String endDate;
-      private String location;
-                 
-         
 
-		
-		public int getId() {
-			return id;
-		}
+    @Id
+    @GeneratedValue
+    @Audited
+    private int id;
 
-		public void setId(int id) {
-			this.id = id;
-		}
+    @Audited
+    @Column(name = "ORG_NAME")
+    private String name;
+    private String type;
 
-		public String getName() {
-			return name;
-		}
+    @Audited
+    private String startDate;
+    private String endDate;
+    private String location;
 
-		public void setName(String name) {
-			this.name = name;
-		}
+    public int getId() {
+        return id;
+    }
 
-		public String getType() {
-			return type;
-		}
+    public void setId(int id) {
+        this.id = id;
+    }
 
-		public void setType(String type) {
-			this.type = type;
-		}
+    public String getName() {
+        return name;
+    }
 
-		public String getStartDate() {
-			return startDate;
-		}
+    public void setName(String name) {
+        this.name = name;
+    }
 
-		public void setStartDate(String startDate) {
-			this.startDate = startDate;
-		}
+    public String getType() {
+        return type;
+    }
 
-		public String getEndDate() {
-			return endDate;
-		}
+    public void setType(String type) {
+        this.type = type;
+    }
 
-		public void setEndDate(String endDate) {
-			this.endDate = endDate;
-		}
+    public String getStartDate() {
+        return startDate;
+    }
 
-		public String getLocation() {
-			return location;
-		}
+    public void setStartDate(String startDate) {
+        this.startDate = startDate;
+    }
 
-		public void setLocation(String location) {
-			this.location = location;
-		}
+    public String getEndDate() {
+        return endDate;
+    }
 
-			
+    public void setEndDate(String endDate) {
+        this.endDate = endDate;
+    }
 
-				
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
 
 }

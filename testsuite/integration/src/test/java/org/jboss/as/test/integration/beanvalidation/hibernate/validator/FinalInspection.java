@@ -1,8 +1,8 @@
 /*
- * JBoss, Home of Professional Open Source.
- * Copyright 2011, Red Hat, Inc., and individual contributors
- * as indicated by the @author tags. See the copyright.txt file in the
- * distribution for a full listing of individual contributors.
+ * JBoss, Home of Professional Open Source
+ * Copyright 2010, Red Hat Inc., and individual contributors as indicated
+ * by the @authors tag. See the copyright.txt in the distribution for a
+ * full listing of individual contributors.
  *
  * This is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as
@@ -19,39 +19,12 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.jboss.as.testsuite.integration.jpa.hibernate.envers;
-
-import javax.persistence.*;
-
-import org.hibernate.envers.Audited;
-
+package org.jboss.as.test.integration.beanvalidation.hibernate.validator;
 
 /**
+ * 
  * @author Madhumita Sadhukhan
  */
+public interface FinalInspection {
 
-
-@Entity
-@Audited
-@Table( name = "SOCCERPLAYER" )
-@PrimaryKeyJoinColumn( name = "SOCCERPLAYER_ID" )
-public class SoccerPlayer extends Player
-{
-
-
-   
-    private String clubName;
-
-  
-
-    public String getClubName()
-    {
-        return clubName;
-    }
-
-    
-    public void setClubName( String clubName )
-    {
-        this.clubName = clubName;
-    }
 }

@@ -20,22 +20,28 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.as.testsuite.integration.jpa.hibernate.envers;
+package org.jboss.as.test.integration.jpa.hibernate.envers;
 
-import java.util.*;
-import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 
-import org.hibernate.envers.*;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.OneToMany;
+
+import org.hibernate.envers.Audited;
 
 /**
  * @author Madhumita Sadhukhan
  */
 @Entity
-@Audited 
+@Audited
 public class CustomerMO {
     @Id
     @GeneratedValue
-    @Column(name="CUST_ID")	
+    @Column(name = "CUST_ID")
     private Integer id;
 
     private String firstname;
@@ -43,60 +49,56 @@ public class CustomerMO {
     private String surname;
 
     @OneToMany
-   // @JoinTable(name = "CUSTOMER_PHONE", joinColumns = { @JoinColumn(name = "CUST_ID", referencedColumnName="CUST_ID") }, inverseJoinColumns = { @JoinColumn(name = "PHONE_ID", referencedColumnName="PHONE_ID") })
-   // @AuditJoinTable(name = "CUSTOMER_PHONE_AUD",inverseJoinColumns = {@JoinColumn(name="PHONE_ID",referencedColumnName="PHONE_ID")})  
-     private List<PhoneMO> phones=new ArrayList<PhoneMO>();
-  
+    private List<PhoneMO> phones = new ArrayList<PhoneMO>();
 
-    
-        public int getId() {
-		return id;
-	}
+    public int getId() {
+        return id;
+    }
 
-	public void setId(int id) {
-		this.id = id;
-	}
+    public void setId(int id) {
+        this.id = id;
+    }
 
-	public String getFirstname() {
-		return firstname;
-	}
+    public String getFirstname() {
+        return firstname;
+    }
 
-	public void setFirstname(String firstname) {
-		this.firstname = firstname;
-	}
+    public void setFirstname(String firstname) {
+        this.firstname = firstname;
+    }
 
-	public String getSurname() {
-		return surname;
-	}
+    public String getSurname() {
+        return surname;
+    }
 
-	public void setSurname(String surname) {
-		this.surname = surname;
-	}
+    public void setSurname(String surname) {
+        this.surname = surname;
+    }
 
-        public List<PhoneMO> getPhones() {
-		return phones;
-	}
+    public List<PhoneMO> getPhones() {
+        return phones;
+    }
 
-	public void setSurname(List<PhoneMO> phones) {
-		this.phones = phones;
-	}
+    public void setSurname(List<PhoneMO> phones) {
+        this.phones = phones;
+    }
 
-	 @Override
-    	public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof CustomerMO)) return false;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (!(o instanceof CustomerMO))
+            return false;
 
         final CustomerMO cust = (CustomerMO) o;
 
         return id != null ? id.equals(cust.id) : cust.id == null;
 
-    	}
+    }
 
-    	@Override
-    	public int hashCode() {
+    @Override
+    public int hashCode() {
         return id != null ? id.hashCode() : 0;
-    	}
-
-       
+    }
 
 }

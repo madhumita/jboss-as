@@ -1,4 +1,4 @@
-package org.jboss.as.testsuite.integration.jpa.hibernate.envers;
+package org.jboss.as.test.integration.jpa.hibernate.envers;
 
 import java.util.*;
 import java.lang.*;
@@ -17,7 +17,7 @@ import org.hibernate.envers.DefaultRevisionEntity;
  * @author Madhumita Sadhukhan
  */
 @Stateless
-public class SLSBAuditInheritance {
+public class SLSBInheritance {
 	
 	@PersistenceContext(unitName = "myPlayer")
 	EntityManager em;
@@ -46,12 +46,7 @@ public class SLSBAuditInheritance {
 	}
 	     
 	       
-	public SoccerPlayer retrieveSoccerPlayerbyId(int id) {
-
-		AuditReader reader = AuditReaderFactory.get( em );
-		SoccerPlayer val = reader.find( SoccerPlayer.class,id,1);
-		return val;
-	}
+	
 	
 	
 

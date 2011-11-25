@@ -20,11 +20,10 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.as.testsuite.integration.jpa.hibernate.envers;
+package org.jboss.as.test.integration.jpa.hibernate.envers;
 
 import java.util.*;
 import javax.persistence.*;
-
 
 import org.hibernate.envers.*;
 
@@ -36,7 +35,7 @@ import org.hibernate.envers.*;
 public class PhoneMO {
     @Id
     @GeneratedValue
-    @Column(name="PHONE_ID")
+    @Column(name = "PHONE_ID")
     private Integer id;
 
     private String type;
@@ -46,69 +45,66 @@ public class PhoneMO {
     private String areacode;
 
     @ManyToOne
-    @JoinTable(name = "CUSTOMER_PHONE", joinColumns = { @JoinColumn(name = "PHONE_ID", referencedColumnName="PHONE_ID") }, inverseJoinColumns = { @JoinColumn(name = "CUST_ID", referencedColumnName="CUST_ID") })
-    @AuditJoinTable(name = "CUSTOMER_PHONE_AUD",inverseJoinColumns = {@JoinColumn(name="CUST_ID",referencedColumnName="CUST_ID")}) 	
+    @JoinTable(name = "CUSTOMER_PHONE", joinColumns = { @JoinColumn(name = "PHONE_ID", referencedColumnName = "PHONE_ID") }, inverseJoinColumns = { @JoinColumn(name = "CUST_ID", referencedColumnName = "CUST_ID") })
+    @AuditJoinTable(name = "CUSTOMER_PHONE_AUD", inverseJoinColumns = { @JoinColumn(name = "CUST_ID", referencedColumnName = "CUST_ID") })
     private CustomerMO customer;
 
+    public String getNumber() {
+        return number;
+    }
 
-	public String getNumber() {
-		return number;
-	}
+    public void setNumber(String number) {
+        this.number = number;
+    }
 
-	public void setNumber(String number) {
-		this.number = number;
-	}
+    public int getId() {
+        return id;
+    }
 
-	public int getId() {
-		return id;
-	}
+    public void setId(int id) {
+        this.id = id;
+    }
 
-	public void setId(int id) {
-		this.id = id;
-	}
+    public String getType() {
+        return type;
+    }
 
-	public String getType() {
-	        return type;
-	}
+    public void setType(String type) {
+        this.type = type;
+    }
 
-	public void setType(String type) {
-		this.type = type;
-	}
+    public String getAreacode() {
+        return areacode;
+    }
 
-        public String getAreacode() {
-		return areacode;
-	}
+    public void setAreacode(String areacode) {
+        this.areacode = areacode;
+    }
 
-	public void setAreacode(String areacode) {
-		this.areacode = areacode;
-	}
+    public CustomerMO getCustomer() {
+        return customer;
+    }
 
-        public CustomerMO getCustomer() {
-		return customer;
-	}
+    public void setCustomer(CustomerMO customer) {
+        this.customer = customer;
+    }
 
-	public void setCustomer(CustomerMO customer) {
-		this.customer = customer;
-	}
-
-
-	 @Override
-    	public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof PhoneMO)) return false;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (!(o instanceof PhoneMO))
+            return false;
 
         final PhoneMO phone = (PhoneMO) o;
 
         return id != null ? id.equals(phone.id) : phone.id == null;
 
-    	}
+    }
 
-    	@Override
-    	public int hashCode() {
+    @Override
+    public int hashCode() {
         return id != null ? id.hashCode() : 0;
-    	}
-
-       
-
+    }
 
 }

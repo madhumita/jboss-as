@@ -1,8 +1,8 @@
 /*
- * JBoss, Home of Professional Open Source.
- * Copyright 2011, Red Hat, Inc., and individual contributors
- * as indicated by the @author tags. See the copyright.txt file in the
- * distribution for a full listing of individual contributors.
+ * JBoss, Home of Professional Open Source
+ * Copyright 2010, Red Hat Inc., and individual contributors as indicated
+ * by the @authors tag. See the copyright.txt in the distribution for a
+ * full listing of individual contributors.
  *
  * This is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as
@@ -19,22 +19,13 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-
-package org.jboss.as.xts;
-
-import org.jboss.logging.MessageBundle;
-import org.jboss.logging.Messages;
+package org.jboss.as.test.integration.beanvalidation.hibernate.validator;
 
 /**
-* Date: 05.11.2011
-*
-* @author <a href="mailto:jperkins@redhat.com">James R. Perkins</a>
-*/
-@MessageBundle(projectCode = "JBAS")
-public interface XtsAsMessages {
+ * 
+ * @author Madhumita Sadhukhan
+ */
 
-/**
-* The messages
-*/
-    XtsAsMessages MESSAGES = Messages.getBundle(XtsAsMessages.class);
+public interface DriverChecks {
+
 }

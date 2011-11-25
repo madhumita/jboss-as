@@ -19,13 +19,21 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.jboss.as.testsuite.integration.jpa.hibernate.envers;
-import java.util.HashSet;
-import java.util.Set;
+package org.jboss.as.test.integration.jpa.beanvalidation;
 
-import javax.persistence.*;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.Inheritance;
+import javax.persistence.InheritanceType;
+import javax.persistence.Table;
+
 import org.hibernate.envers.Audited;
 import org.hibernate.envers.NotAudited;
+import org.hibernate.validator.constraints.NotBlank;
+import org.hibernate.validator.constraints.NotEmpty;
 
 /**
  * @author Madhumita Sadhukhan
@@ -33,31 +41,31 @@ import org.hibernate.envers.NotAudited;
 
 @Entity
 @Audited
-@Table(name="PLAYER")
+@Table(name = "PLAYER")
 @Inheritance(strategy = InheritanceType.JOINED)
-
-public class Player{
+public class Player {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column( name = "PLAYER_ID" )	
+    @Column(name = "PLAYER_ID")
     private Integer id;
 
     @Column(length = 30)
     protected String firstName;
 
     @Column(length = 30)
+    @NotBlank
+    @NotEmpty
     protected String lastName;
 
     @NotAudited
     protected String game;
 
-        
     public Integer getId() {
         return id;
     }
 
-    public String getFirstName(){
+    public String getFirstName() {
         return firstName;
     }
 
@@ -81,11 +89,12 @@ public class Player{
         this.game = game;
     }
 
-   
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Player)) return false;
+        if (this == o)
+            return true;
+        if (!(o instanceof Player))
+            return false;
 
         final Player player = (Player) o;
 
@@ -98,7 +107,4 @@ public class Player{
         return id != null ? id.hashCode() : 0;
     }
 
-    
 }
-
-

@@ -19,64 +19,29 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-
 package org.jboss.as.test.integration.jpa.hibernate.envers;
 
-import java.util.HashSet;
-import java.util.Set;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.OneToMany;
+import javax.persistence.*;
 
 import org.hibernate.envers.Audited;
 
 /**
- * @author Strong Liu
+ * @author Madhumita Sadhukhan
  */
+
 @Entity
 @Audited
-public class Address {
-    @Id
-    @GeneratedValue
-    private int id;
+@Table(name = "SOCCERPLAYER")
+@PrimaryKeyJoinColumn(name = "SOCCERPLAYER_ID")
+public class SoccerPlayer extends Player {
 
-    private String streetName;
+    private String clubName;
 
-    private Integer houseNumber;
-
-    @OneToMany(mappedBy = "address")
-    private Set<Person> persons = new HashSet<Person>();
-
-    public Integer getHouseNumber() {
-        return houseNumber;
+    public String getClubName() {
+        return clubName;
     }
 
-    public void setHouseNumber(Integer houseNumber) {
-        this.houseNumber = houseNumber;
-    }
-
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public Set<Person> getPersons() {
-        return persons;
-    }
-
-    public void setPersons(Set<Person> persons) {
-        this.persons = persons;
-    }
-
-    public String getStreetName() {
-        return streetName;
-    }
-
-    public void setStreetName(String streetName) {
-        this.streetName = streetName;
+    public void setClubName(String clubName) {
+        this.clubName = clubName;
     }
 }
