@@ -24,6 +24,7 @@ package org.jboss.as.ee.component;
 
 import java.util.Set;
 
+import org.jboss.as.ee.component.deployers.MessageDestinationInjectionSource;
 import org.jboss.as.server.deployment.AttachmentKey;
 import org.jboss.as.server.deployment.AttachmentList;
 import org.jboss.as.server.deployment.SetupAction;
@@ -58,4 +59,19 @@ public class Attachments {
      * Additional (remote) components that can be resolved but are not installed.
      */
     public static final AttachmentKey<AttachmentList<ComponentDescription>> ADDITIONAL_RESOLVABLE_COMPONENTS = AttachmentKey.createList(ComponentDescription.class);
+
+    /**
+     * Unlike the EE spec which says application name is the name of the top level deployment (even if it is just
+     * a jar and not a ear), the EJB spec semantics (for JNDI) expect that the application name is the
+     * .ear name (or any configured value in application.xml). Absence of the .ear is expected to mean
+     * there's no application name. This attachement key, provides the application name which is follows the
+     * EJB spec semantics.
+     */
+    public static final AttachmentKey<String> EAR_APPLICATION_NAME = AttachmentKey.create(String.class);
+
+
+    /**
+     * Any message destinations that need to be resolved.
+     */
+    public static final AttachmentKey<AttachmentList<MessageDestinationInjectionSource>> MESSAGE_DESTINATIONS = AttachmentKey.createList(MessageDestinationInjectionSource.class);
 }

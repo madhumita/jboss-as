@@ -32,18 +32,26 @@ import java.util.Map;
 import org.jboss.as.ee.component.interceptors.InterceptorClassDescription;
 import org.jboss.as.ee.naming.InjectedEENamespaceContextSelector;
 
+import static org.jboss.as.ee.EeMessages.MESSAGES;
+
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class EEModuleDescription {
     private final String applicationName;
     private volatile String moduleName;
+    private final String earApplicationName;
     //distinct name defaults to the empty string
     private volatile String distinctName = "";
     private final Map<String, ComponentDescription> componentsByName = new HashMap<String, ComponentDescription>();
     private final Map<String, List<ComponentDescription>> componentsByClassName = new HashMap<String, List<ComponentDescription>>();
     private final Map<String, EEModuleClassDescription> classDescriptions = new HashMap<String, EEModuleClassDescription>();
     private final Map<String, InterceptorClassDescription> interceptorClassOverrides = new HashMap<String, InterceptorClassDescription>();
+
+    /**
+     * A map of message destinations names to their resolved JNDI name
+     */
+    private final Map<String, String> messageDestinations = new HashMap<String, String>();
 
     private InjectedEENamespaceContextSelector namespaceContextSelector;
 
@@ -56,12 +64,14 @@ public final class EEModuleDescription {
     /**
      * Construct a new instance.
      *
-     * @param applicationName the application name
-     * @param moduleName      the module name
+     * @param applicationName    the application name (which is same as the module name if the .ear is absent)
+     * @param moduleName         the module name
+     * @param earApplicationName The application name (which is null if the .ear is absent)
      */
-    public EEModuleDescription(final String applicationName, final String moduleName) {
+    public EEModuleDescription(final String applicationName, final String moduleName, final String earApplicationName) {
         this.applicationName = applicationName;
         this.moduleName = moduleName;
+        this.earApplicationName = earApplicationName;
     }
 
     /**
@@ -76,7 +86,7 @@ public final class EEModuleDescription {
      */
     public EEModuleClassDescription addOrGetLocalClassDescription(final String className) {
         if (className == null) {
-            throw new IllegalArgumentException("Name cannot be null");
+            throw MESSAGES.nullVar("name");
         }
         EEModuleClassDescription ret = classDescriptions.get(className);
         if (ret == null) {
@@ -113,13 +123,13 @@ public final class EEModuleDescription {
         final String componentName = description.getComponentName();
         final String componentClassName = description.getComponentClassName();
         if (componentName == null) {
-            throw new IllegalArgumentException("componentName is null");
+            throw MESSAGES.nullVar("componentName");
         }
         if (componentClassName == null) {
-            throw new IllegalArgumentException("componentClassName is null");
+            throw MESSAGES.nullVar("componentClassName");
         }
         if (componentsByName.containsKey(componentName)) {
-            throw new IllegalArgumentException("A component named '" + componentName + "' is already defined in this module");
+            throw MESSAGES.componentAlreadyDefined(componentName);
         }
         componentsByName.put(componentName, description);
         List<ComponentDescription> list = componentsByClassName.get(componentClassName);
@@ -129,6 +139,13 @@ public final class EEModuleDescription {
         list.add(description);
     }
 
+    /**
+     * Returns the application name which can be the same as the module name, in the absence of a .ear top level
+     * deployment
+     *
+     * @return
+     * @see {@link #getEarApplicationName()}
+     */
     public String getApplicationName() {
         return applicationName;
     }
@@ -172,9 +189,21 @@ public final class EEModuleDescription {
 
     public void setDistinctName(String distinctName) {
         if (distinctName == null) {
-            throw new IllegalArgumentException("Distinct name cannot be null");
+            throw MESSAGES.nullVar("distinctName");
         }
         this.distinctName = distinctName;
+    }
+
+    /**
+     * Unlike the {@link #getApplicationName()} which follows the Java EE6 spec semantics i.e. application name is the
+     * name of the top level deployment (even if it is just a jar and not a ear), this method returns the
+     * application name which follows the EJB spec semantics i.e. the application name is the
+     * .ear name or any configured value in application.xml. This method returns null in the absence of a .ear
+     *
+     * @return
+     */
+    public String getEarApplicationName() {
+        return this.earApplicationName;
     }
 
     /**
@@ -205,18 +234,26 @@ public final class EEModuleDescription {
     public void addResourceInjection(final ResourceInjectionConfiguration injection) {
         String className = injection.getTarget().getClassName();
         Map<InjectionTarget, ResourceInjectionConfiguration> map = resourceInjections.get(className);
-        if(map == null) {
+        if (map == null) {
             resourceInjections.put(className, map = new HashMap<InjectionTarget, ResourceInjectionConfiguration>());
         }
         map.put(injection.getTarget(), injection);
     }
 
-    public Map<InjectionTarget, ResourceInjectionConfiguration> getResourceInjections(final  String className) {
+    public Map<InjectionTarget, ResourceInjectionConfiguration> getResourceInjections(final String className) {
         Map<InjectionTarget, ResourceInjectionConfiguration> injections = resourceInjections.get(className);
-        if(injections == null) {
+        if (injections == null) {
             return Collections.emptyMap();
         } else {
             return Collections.unmodifiableMap(injections);
         }
+    }
+
+    public void addMessageDestination(final String name, final String jndiName) {
+        messageDestinations.put(name, jndiName);
+    }
+
+    public Map<String, String> getMessageDestinations() {
+        return Collections.unmodifiableMap(messageDestinations);
     }
 }

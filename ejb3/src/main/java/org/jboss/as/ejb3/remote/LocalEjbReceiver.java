@@ -51,9 +51,9 @@ import org.jboss.ejb.client.EntityEJBLocator;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.invocation.InterceptorContext;
+import org.jboss.marshalling.cloner.ClassLoaderClassCloner;
 import org.jboss.marshalling.cloner.ClonerConfiguration;
 import org.jboss.marshalling.cloner.ObjectCloner;
-import org.jboss.marshalling.cloner.ObjectClonerFactory;
 import org.jboss.marshalling.cloner.ObjectCloners;
 import org.jboss.msc.service.Service;
 import org.jboss.msc.service.ServiceName;
@@ -79,7 +79,6 @@ public class LocalEjbReceiver extends EJBReceiver<Void> implements Service<Local
     private final InjectedValue<DeploymentRepository> deploymentRepository = new InjectedValue<DeploymentRepository>();
     private final Listener deploymentListener = new Listener();
     private final boolean allowPassByReference;
-    private volatile ObjectCloner cloner;
 
     public LocalEjbReceiver(final String nodeName, final boolean allowPassByReference) {
         super(nodeName);
@@ -104,6 +103,10 @@ public class LocalEjbReceiver extends EJBReceiver<Void> implements Service<Local
             throw new RuntimeException("Could not find view " + viewClass + " for ejb " + ejb.getEjbName());
         }
 
+        final ClonerConfiguration paramConfig = new ClonerConfiguration();
+        paramConfig.setClassCloner(new ClassLoaderClassCloner(ejb.getDeploymentClassLoader()));
+        final ObjectCloner parameterCloner = ObjectCloners.getSerializingObjectClonerFactory().createCloner(paramConfig);
+
         //TODO: this is not very efficent
         final Method method = view.getMethod(invocation.getInvokedMethod().getName(), DescriptorUtils.methodDescriptor(invocation.getInvokedMethod()));
 
@@ -115,7 +118,7 @@ public class LocalEjbReceiver extends EJBReceiver<Void> implements Service<Local
         } else {
             parameters = new Object[invocation.getParameters().length];
             for (int i = 0; i < parameters.length; ++i) {
-                parameters[i] = clone(method.getParameterTypes()[i], invocation.getParameters()[i], allowPassByReference);
+                parameters[i] = clone(method.getParameterTypes()[i], parameterCloner, invocation.getParameters()[i], allowPassByReference);
             }
         }
 
@@ -135,6 +138,9 @@ public class LocalEjbReceiver extends EJBReceiver<Void> implements Service<Local
             context.putPrivateData(EntityBeanComponent.PRIMARY_KEY_CONTEXT_KEY, primaryKey);
         }
 
+        final ClonerConfiguration config = new ClonerConfiguration();
+        config.setClassCloner(new ClassLoaderClassCloner(invocation.getInvokedProxy().getClass().getClassLoader()));
+        final ObjectCloner resultCloner = ObjectCloners.getSerializingObjectClonerFactory().createCloner(config);
         if (async) {
             if (ejbComponent instanceof SessionBeanComponent) {
                 final SessionBeanComponent component = (SessionBeanComponent) ejbComponent;
@@ -149,29 +155,45 @@ public class LocalEjbReceiver extends EJBReceiver<Void> implements Service<Local
                 context.putPrivateData(CancellationFlag.class, flag);
                 component.getAsynchronousExecutor().submit(task);
                 //TODO: we do not clone the result of an async task
+                //TODO: we do not clone the exception of an async task
                 receiverContext.resultReady(new ImmediateResultProducer(task));
             } else {
                 throw new RuntimeException("Cannot perform asynchronous local invocation for component that is not a session bean");
             }
         } else {
-            final Object result = view.invoke(context);
+            final Object result;
+            try {
+                result = view.invoke(context);
+            } catch (Exception e) {
+                //we even have to clone the exception type
+                //to make sure it matches
+                throw (Exception) clone(resultCloner, e);
+            }
             //we do not marshal the return type unless we have to, the spec only says we have to
             //pass parameters by reference
             //TODO: investigate the implications of this further
-            final Object clonedResult = clone(method.getReturnType(), result, true);
+            final Object clonedResult = clone(invocation.getInvokedMethod().getReturnType(), resultCloner, result, allowPassByReference);
             receiverContext.resultReady(new ImmediateResultProducer(clonedResult));
         }
     }
 
-    private Object clone(final Class<?> target, final Object object, final boolean allowPassByReference) {
+    private Object clone(final Class<?> target, final ObjectCloner cloner, final Object object, final boolean allowPassByReference) {
+        if (object == null) {
+            return null;
+        }
+
+        if (allowPassByReference && target.isAssignableFrom(object.getClass())) {
+            return object;
+        }
+        return clone(cloner, object);
+    }
+
+    private Object clone(final ObjectCloner cloner, final Object object) {
         if (object == null) {
             return null;
         }
 
         try {
-            if (allowPassByReference && target.isAssignableFrom(object.getClass())) {
-                return object;
-            }
             return cloner.clone(object);
         } catch (IOException e) {
             throw new RuntimeException("IOException marshaling EJB parameters", e);
@@ -217,9 +239,7 @@ public class LocalEjbReceiver extends EJBReceiver<Void> implements Service<Local
 
     @Override
     public void start(final StartContext context) throws StartException {
-        final ObjectClonerFactory factory = ObjectCloners.getSerializingObjectClonerFactory();
-        final ClonerConfiguration configuration = new ClonerConfiguration();
-        cloner = factory.createCloner(configuration);
+
         deploymentRepository.getValue().addListener(deploymentListener);
     }
 
@@ -229,7 +249,6 @@ public class LocalEjbReceiver extends EJBReceiver<Void> implements Service<Local
             ctx.close();
         }
         this.contexts.clear();
-        this.cloner = null;
         deploymentRepository.getValue().removeListener(deploymentListener);
     }
 

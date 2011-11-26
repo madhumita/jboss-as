@@ -57,8 +57,9 @@ import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.FieldInfo;
 import org.jboss.jandex.MethodInfo;
-import org.jboss.logging.Logger;
 import org.jboss.modules.Module;
+
+import static org.jboss.as.ee.EeMessages.MESSAGES;
 
 /**
  * Deployment processor responsible for analyzing each attached {@link org.jboss.as.ee.component.ComponentDescription} instance to configure
@@ -69,8 +70,6 @@ import org.jboss.modules.Module;
  * @author <a href="mailto:ropalka@redhat.com">Richard Opalka</a>
  */
 public class ResourceInjectionAnnotationParsingProcessor implements DeploymentUnitProcessor {
-
-    private static final Logger logger = Logger.getLogger(ResourceInjectionAnnotationParsingProcessor.class);
 
     private static final DotName RESOURCE_ANNOTATION_NAME = DotName.createSimple(Resource.class.getName());
     private static final DotName RESOURCES_ANNOTATION_NAME = DotName.createSimple(Resources.class.getName());
@@ -87,6 +86,7 @@ public class ResourceInjectionAnnotationParsingProcessor implements DeploymentUn
         locations.put(ValidatorFactory.class.getName(), "java:comp/ValidatorFactory");
         locations.put("javax.ejb.EJBContext", "java:comp/EJBContext");
         locations.put("javax.ejb.SessionContext", "java:comp/EJBContext");
+        locations.put("javax.ejb.MessageDrivenContext", "java:comp/EJBContext");
         locations.put("javax.ejb.TimerService", "java:comp/TimerService");
         locations.put("org.osgi.framework.BundleContext", "java:comp/BundleContext");
         locations.put("org.omg.CORBA.ORB", "java:comp/ORB");
@@ -140,17 +140,17 @@ public class ResourceInjectionAnnotationParsingProcessor implements DeploymentUn
             final AnnotationValue typeValue = annotation.value("type");
             final String type = typeValue != null ? typeValue.asClass().name().toString() : null;
             if (annotationTarget instanceof FieldInfo) {
-                FieldInfo fieldInfo = (FieldInfo) annotationTarget;
-                ClassInfo classInfo = fieldInfo.declaringClass();
+                final FieldInfo fieldInfo = (FieldInfo) annotationTarget;
+                final ClassInfo classInfo = fieldInfo.declaringClass();
                 EEModuleClassDescription classDescription = eeModuleDescription.addOrGetLocalClassDescription(classInfo.name().toString());
                 processFieldResource(phaseContext, fieldInfo, name, type, classDescription, annotation, eeModuleDescription, module, applicationClasses);
             } else if (annotationTarget instanceof MethodInfo) {
-                MethodInfo methodInfo = (MethodInfo) annotationTarget;
+                final MethodInfo methodInfo = (MethodInfo) annotationTarget;
                 ClassInfo classInfo = methodInfo.declaringClass();
                 EEModuleClassDescription classDescription = eeModuleDescription.addOrGetLocalClassDescription(classInfo.name().toString());
                 processMethodResource(phaseContext, methodInfo, name, type, classDescription, annotation, eeModuleDescription, module, applicationClasses);
             } else if (annotationTarget instanceof ClassInfo) {
-                ClassInfo classInfo = (ClassInfo) annotationTarget;
+                final ClassInfo classInfo = (ClassInfo) annotationTarget;
                 EEModuleClassDescription classDescription = eeModuleDescription.addOrGetLocalClassDescription(classInfo.name().toString());
                 processClassResource(phaseContext, name, type, classDescription, annotation, eeModuleDescription, module, applicationClasses);
             }
@@ -187,7 +187,7 @@ public class ResourceInjectionAnnotationParsingProcessor implements DeploymentUn
     protected void processMethodResource(final DeploymentPhaseContext phaseContext, final MethodInfo methodInfo, final String name, final String type, final EEModuleClassDescription classDescription, final AnnotationInstance annotation, final EEModuleDescription eeModuleDescription, final Module module, final EEApplicationClasses applicationClasses) throws DeploymentUnitProcessingException {
         final String methodName = methodInfo.name();
         if (!methodName.startsWith("set") || methodInfo.args().length != 1) {
-            throw new IllegalArgumentException("@Resource injection target is invalid.  Only setter methods are allowed: " + methodInfo);
+            throw MESSAGES.setterMethodOnly("@Resource", methodInfo);
         }
 
         final String contextNameSuffix = methodName.substring(3, 4).toLowerCase() + methodName.substring(4);
@@ -200,7 +200,7 @@ public class ResourceInjectionAnnotationParsingProcessor implements DeploymentUn
 
     protected void processClassResource(final DeploymentPhaseContext phaseContext, final String name, final String type, final EEModuleClassDescription classDescription, final AnnotationInstance annotation, final EEModuleDescription eeModuleDescription, final Module module, final EEApplicationClasses applicationClasses) throws DeploymentUnitProcessingException {
         if (isEmpty(name)) {
-            throw new IllegalArgumentException("Class level @Resource annotations must provide a name.");
+            throw MESSAGES.annotationAttributeMissing("@Resource", "name");
         }
         final String realType;
         if (isEmpty(type)) {

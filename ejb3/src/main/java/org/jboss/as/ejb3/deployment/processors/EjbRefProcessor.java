@@ -101,9 +101,6 @@ public class EjbRefProcessor extends AbstractDeploymentDescriptorBindingsProcess
                 //add any injection targets
                 remoteInterfaceType = processInjectionTargets(moduleDescription, componentDescription, applicationClasses, injectionSource, classLoader, deploymentReflectionIndex, ejbRef, remoteInterfaceType);
 
-                if (remoteInterfaceType == null) {
-                    throw new DeploymentUnitProcessingException("Could not determine type of ejb-ref " + name + " for component " + componentDescription);
-                }
                 final BindingConfiguration bindingConfiguration;
                 EjbInjectionSource ejbInjectionSource = null;
 
@@ -113,11 +110,18 @@ public class EjbRefProcessor extends AbstractDeploymentDescriptorBindingsProcess
                     } else {
                         bindingConfiguration = new BindingConfiguration(name, new LookupInjectionSource(lookup));
                     }
-                } else if (!isEmpty(ejbName)) {
-                    bindingConfiguration = new BindingConfiguration(name, ejbInjectionSource = new EjbInjectionSource(ejbName, remoteInterfaceType.getName()));
                 } else {
-                    bindingConfiguration = new BindingConfiguration(name, ejbInjectionSource = new EjbInjectionSource(remoteInterfaceType.getName()));
+
+                if (remoteInterfaceType == null) {
+                    throw new DeploymentUnitProcessingException("Could not determine type of ejb-ref " + name + " for component " + componentDescription);
                 }
+                    if (!isEmpty(ejbName)) {
+                        bindingConfiguration = new BindingConfiguration(name, ejbInjectionSource = new EjbInjectionSource(ejbName, remoteInterfaceType.getName(), name));
+                    } else {
+                        bindingConfiguration = new BindingConfiguration(name, ejbInjectionSource = new EjbInjectionSource(remoteInterfaceType.getName(), name));
+                    }
+                }
+
                 if (ejbInjectionSource != null) {
                     deploymentUnit.addToAttachmentList(EjbDeploymentAttachmentKeys.EJB_INJECTIONS, ejbInjectionSource);
                 }
@@ -145,7 +149,7 @@ public class EjbRefProcessor extends AbstractDeploymentDescriptorBindingsProcess
                         }
                     } else if (!isEmpty(localInterface)) {
                         try {
-                            localInterfaceType = classLoader.loadClass(localInterface);
+                            localInterfaceType = index.classIndex(localInterface).getModuleClass();
                         } catch (ClassNotFoundException e) {
                             throw new DeploymentUnitProcessingException("Could not load local interface type " + localInterface, e);
                         }
@@ -174,9 +178,9 @@ public class EjbRefProcessor extends AbstractDeploymentDescriptorBindingsProcess
                             bindingConfiguration = new BindingConfiguration(name, new LookupInjectionSource(lookup));
                         }
                     } else if (!isEmpty(ejbName)) {
-                        bindingConfiguration = new BindingConfiguration(name, ejbInjectionSource = new EjbInjectionSource(ejbName, localInterfaceType.getName()));
+                        bindingConfiguration = new BindingConfiguration(name, ejbInjectionSource = new EjbInjectionSource(ejbName, localInterfaceType.getName(), name));
                     } else {
-                        bindingConfiguration = new BindingConfiguration(name, ejbInjectionSource = new EjbInjectionSource(localInterfaceType.getName()));
+                        bindingConfiguration = new BindingConfiguration(name, ejbInjectionSource = new EjbInjectionSource(localInterfaceType.getName(), name));
                     }
                     if (ejbInjectionSource != null) {
                         deploymentUnit.addToAttachmentList(EjbDeploymentAttachmentKeys.EJB_INJECTIONS, ejbInjectionSource);

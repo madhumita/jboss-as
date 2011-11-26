@@ -71,11 +71,13 @@ public class EJBComponentCreateService extends BasicComponentCreateService {
     private final Method timeoutMethod;
 
     private final ServiceName ejbLocalHome;
-
     private final ServiceName ejbHome;
+    private final ServiceName ejbObject;
+    private final ServiceName ejbLocalObject;
 
 
     private final String applicationName;
+    private final String earApplicationName;
     private final String moduleName;
     private final String distinctName;
 
@@ -126,7 +128,7 @@ public class EJBComponentCreateService extends BasicComponentCreateService {
                         if (!Modifier.isPublic(method.getModifiers()))
                             continue;
                         final Method componentMethod = getComponentMethod(componentConfiguration, method.getName(), method.getParameterTypes());
-                        if(componentMethod != null) {
+                        if (componentMethod != null) {
                             this.processTxAttr(ejbComponentDescription, viewType, componentMethod);
                         }
                     }
@@ -149,11 +151,16 @@ public class EJBComponentCreateService extends BasicComponentCreateService {
             viewServices.put(view.getViewClassName(), view.getServiceName());
         }
         this.viewServices = viewServices;
-        EjbHomeViewDescription localHome= ejbComponentDescription.getEjbLocalHomeView();
+        final EjbHomeViewDescription localHome = ejbComponentDescription.getEjbLocalHomeView();
         this.ejbLocalHome = localHome == null ? null : ejbComponentDescription.getEjbLocalHomeView().getServiceName();
-        EjbHomeViewDescription home = ejbComponentDescription.getEjbHomeView();
+        final EjbHomeViewDescription home = ejbComponentDescription.getEjbHomeView();
         this.ejbHome = home == null ? null : home.getServiceName();
+        final EJBViewDescription ejbObject = ejbComponentDescription.getEjbRemoteView();
+        this.ejbObject = ejbObject == null ? null : ejbObject.getServiceName();
+        final EJBViewDescription ejbLocalObject = ejbComponentDescription.getEjbLocalView();
+        this.ejbLocalObject = ejbLocalObject == null ? null : ejbLocalObject.getServiceName();
         this.applicationName = componentConfiguration.getApplicationName();
+        this.earApplicationName = componentConfiguration.getComponentDescription().getModuleDescription().getEarApplicationName();
         this.moduleName = componentConfiguration.getModuleName();
         this.distinctName = componentConfiguration.getComponentDescription().getModuleDescription().getDistinctName();
     }
@@ -235,8 +242,20 @@ public class EJBComponentCreateService extends BasicComponentCreateService {
         return ejbLocalHome;
     }
 
+    public ServiceName getEjbObject() {
+        return ejbObject;
+    }
+
+    public ServiceName getEjbLocalObject() {
+        return ejbLocalObject;
+    }
+
     public String getApplicationName() {
         return applicationName;
+    }
+
+    public String getEarApplicationName() {
+        return this.earApplicationName;
     }
 
     public String getDistinctName() {

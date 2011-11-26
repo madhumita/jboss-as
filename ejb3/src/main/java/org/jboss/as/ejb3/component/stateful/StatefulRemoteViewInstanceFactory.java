@@ -31,7 +31,6 @@ import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.msc.value.ImmediateValue;
-
 /**
  * @author Stuart Douglas
  */
@@ -43,21 +42,17 @@ public class StatefulRemoteViewInstanceFactory implements ViewInstanceFactory {
     private final String beanName;
 
     public StatefulRemoteViewInstanceFactory(final String applicationName, final String moduleName, final String distinctName, final String beanName) {
-        this.applicationName = applicationName;
+        this.applicationName = applicationName == null ? "" : applicationName;
         this.moduleName = moduleName;
         this.distinctName = distinctName;
         this.beanName = beanName;
     }
 
     @Override
-    public ManagedReference createViewInstance(final ComponentView componentView, final Map<Object, Object> contextData) {
+    public ManagedReference createViewInstance(final ComponentView componentView, final Map<Object, Object> contextData) throws Exception {
         SessionID sessionID = (SessionID) contextData.get(SessionID.SESSION_ID_KEY);
         if(sessionID == null) {
-            try {
-                sessionID = EJBClient.createSession(applicationName, moduleName, beanName, distinctName);
-            } catch (Exception e) {
-                throw new RuntimeException("Could not create session for Stateful bean " + beanName,e);
-            }
+            sessionID = EJBClient.createSession(applicationName, moduleName, beanName, distinctName);
         }
         Object value = EJBClient.createProxy(new StatefulEJBLocator(componentView.getViewClass(), applicationName, moduleName, beanName, distinctName, sessionID));
         return new ValueManagedReference(new ImmediateValue(value));

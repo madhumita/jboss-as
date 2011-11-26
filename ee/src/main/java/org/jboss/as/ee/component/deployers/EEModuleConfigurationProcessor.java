@@ -38,9 +38,11 @@ import org.jboss.as.server.deployment.DeploymentUnit;
 import org.jboss.as.server.deployment.DeploymentUnitProcessingException;
 import org.jboss.as.server.deployment.DeploymentUnitProcessor;
 import org.jboss.as.server.deployment.reflect.DeploymentClassIndex;
-import org.jboss.logging.Logger;
 import org.jboss.modules.Module;
 import org.jboss.msc.service.ServiceName;
+
+import static org.jboss.as.ee.EeLogger.ROOT_LOGGER;
+import static org.jboss.as.ee.EeMessages.MESSAGES;
 
 /**
  * Deployment processor responsible for creating a {@link org.jboss.as.ee.component.EEModuleConfiguration} from a {@link org.jboss.as.ee.component.EEModuleDescription} and
@@ -49,8 +51,6 @@ import org.jboss.msc.service.ServiceName;
  * @author John Bailey
  */
 public class EEModuleConfigurationProcessor implements DeploymentUnitProcessor {
-
-    private static final Logger logger = Logger.getLogger(EEModuleConfigurationProcessor.class);
 
     public void deploy(DeploymentPhaseContext phaseContext) throws DeploymentUnitProcessingException {
         final DeploymentUnit deploymentUnit = phaseContext.getDeploymentUnit();
@@ -72,23 +72,24 @@ public class EEModuleConfigurationProcessor implements DeploymentUnitProcessor {
         final Iterator<ComponentDescription> iterator = moduleDescription.getComponentDescriptions().iterator();
             while (iterator.hasNext()) {
                 final ComponentDescription componentDescription = iterator.next();
-                logger.debug("Configuring component class: " + componentDescription.getComponentClassName() + " named " + componentDescription.getComponentName());
+                ROOT_LOGGER.debugf("Configuring component class: %s named %s", componentDescription.getComponentClassName(),
+                        componentDescription.getComponentName());
                 final ComponentConfiguration componentConfiguration;
                 try {
-                    componentConfiguration = componentDescription.createConfiguration(classIndex.classIndex(componentDescription.getComponentClassName()));
+                    componentConfiguration = componentDescription.createConfiguration(classIndex.classIndex(componentDescription.getComponentClassName()), module.getClassLoader());
                     for (final ComponentConfigurator componentConfigurator : componentDescription.getConfigurators()) {
                         componentConfigurator.configure(phaseContext, componentDescription, componentConfiguration);
                     }
                     moduleConfiguration.addComponentConfiguration(componentConfiguration);
                 } catch (Exception e) {
                     if (componentDescription.isOptional()) {
-                        logger.warnf(e, "Not installing optional component %s due to exception", componentDescription.getComponentName());
+                        ROOT_LOGGER.componentInstallationFailure(e, componentDescription.getComponentName());
                         failed.add(componentDescription.getStartServiceName());
                         failed.add(componentDescription.getCreateServiceName());
                         failed.add(componentDescription.getServiceName());
                         iterator.remove();
                     } else {
-                        throw new DeploymentUnitProcessingException("Could not load component class " + componentDescription.getComponentClassName(), e);
+                        throw MESSAGES.cannotConfigureComponent(e, componentDescription.getComponentName());
                     }
                 }
             }

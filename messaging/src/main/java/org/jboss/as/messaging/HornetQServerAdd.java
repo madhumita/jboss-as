@@ -67,7 +67,6 @@ import static org.jboss.as.messaging.CommonAttributes.MESSAGE_COUNTER_MAX_DAY_HI
 import static org.jboss.as.messaging.CommonAttributes.MESSAGE_COUNTER_SAMPLE_PERIOD;
 import static org.jboss.as.messaging.CommonAttributes.MESSAGE_EXPIRY_SCAN_PERIOD;
 import static org.jboss.as.messaging.CommonAttributes.MESSAGE_EXPIRY_THREAD_PRIORITY;
-import static org.jboss.as.messaging.CommonAttributes.NAME_OPTIONAL;
 import static org.jboss.as.messaging.CommonAttributes.PAGING_DIRECTORY;
 import static org.jboss.as.messaging.CommonAttributes.PERF_BLAST_PAGES;
 import static org.jboss.as.messaging.CommonAttributes.PERSISTENCE_ENABLED;
@@ -113,6 +112,7 @@ import org.jboss.as.controller.ServiceVerificationHandler;
 import org.jboss.as.controller.descriptions.ModelDescriptionConstants;
 import org.jboss.as.controller.registry.Resource;
 import org.jboss.as.messaging.jms.JMSService;
+import org.jboss.as.network.OutboundSocketBinding;
 import org.jboss.as.network.SocketBinding;
 import org.jboss.as.server.services.path.RelativePathService;
 import org.jboss.dmr.ModelNode;
@@ -225,11 +225,27 @@ class HornetQServerAdd implements OperationStepHandler {
                 // Process acceptors and connectors
                 final Set<String> socketBindings = new HashSet<String>();
                 TransportConfigOperationHandlers.processAcceptors(configuration, model, socketBindings);
-                TransportConfigOperationHandlers.processConnectors(configuration, model, socketBindings);
 
                 for (final String socketBinding : socketBindings) {
                     final ServiceName socketName = SocketBinding.JBOSS_BINDING_NAME.append(socketBinding);
                     serviceBuilder.addDependency(socketName, SocketBinding.class, hqService.getSocketBindingInjector(socketBinding));
+                }
+
+                final Set<String> outboundSocketBindings = new HashSet<String>();
+                TransportConfigOperationHandlers.processConnectors(configuration, model, outboundSocketBindings);
+                for (final String outboundSocketBinding : outboundSocketBindings) {
+                    final ServiceName outboundSocketName = OutboundSocketBinding.OUTBOUND_SOCKET_BINDING_BASE_SERVICE_NAME.append(outboundSocketBinding);
+                    // Optional dependency so it won't fail if the user used a ref to socket-binding instead of
+                    // outgoing-socket-binding
+                    serviceBuilder.addDependency(DependencyType.OPTIONAL, outboundSocketName, OutboundSocketBinding.class,
+                            hqService.getOutboundSocketBindingInjector(outboundSocketBinding));
+                    if (!socketBindings.contains(outboundSocketBinding)) {
+                        // Add a dependency on the regular socket binding as well so users don't have to use
+                        // outgoing-socket-binding to configure a ref to the local server socket
+                        final ServiceName socketName = SocketBinding.JBOSS_BINDING_NAME.append(outboundSocketBinding);
+                        serviceBuilder.addDependency(DependencyType.OPTIONAL, socketName, SocketBinding.class,
+                                hqService.getSocketBindingInjector(outboundSocketBinding));
+                    }
                 }
 
                 final List<BroadcastGroupConfiguration> broadcastGroupConfigurations = configuration.getBroadcastGroupConfigurations();
@@ -332,10 +348,6 @@ class HornetQServerAdd implements OperationStepHandler {
         configuration.setMessageCounterMaxDayHistory(MESSAGE_COUNTER_MAX_DAY_HISTORY.resolveModelAttribute(context, model).asInt());
         configuration.setMessageExpiryScanPeriod(MESSAGE_EXPIRY_SCAN_PERIOD.resolveModelAttribute(context, model).asLong());
         configuration.setMessageExpiryThreadPriority(MESSAGE_EXPIRY_THREAD_PRIORITY.resolveModelAttribute(context, model).asInt());
-
-        if (model.hasDefined(NAME_OPTIONAL.getName())) {
-            configuration.setName(NAME_OPTIONAL.resolveModelAttribute(context, model).asString());
-        }
 
         configuration.setJournalPerfBlastPages(PERF_BLAST_PAGES.resolveModelAttribute(context, model).asInt());
         configuration.setPersistDeliveryCountBeforeDelivery(PERSIST_DELIVERY_COUNT_BEFORE_DELIVERY.resolveModelAttribute(context, model).asBoolean());

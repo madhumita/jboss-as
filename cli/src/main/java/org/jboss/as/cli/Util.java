@@ -43,32 +43,52 @@ public class Util {
     public static final String ADDRESS = "address";
     public static final String ATTRIBUTES = "attributes";
     public static final String BYTES = "bytes";
+    public static final String CHILDREN = "children";
     public static final String COMPOSITE = "composite";
     public static final String CONCURRENT_GROUPS = "concurrent-groups";
     public static final String CONTENT = "content";
     public static final String DEPLOY = "deploy";
     public static final String DEPLOYMENT = "deployment";
     public static final String DESCRIPTION = "description";
+    public static final String EXPRESSIONS_ALLOWED = "expressions-allowed";
+    public static final String HEAD_COMMENT_ALLOWED = "head-comment-allowed";
     public static final String FULL_REPLACE_DEPLOYMENT = "full-replace-deployment";
     public static final String IN_SERIES = "in-series";
+    public static final String INCLUDE_RUNTIME = "include-runtime";
     public static final String INPUT_STREAM_INDEX = "input-stream-index";
+    public static final String MIN_OCCURS = "min-occurs";
+    public static final String MAX_OCCURS = "max-occurs";
     public static final String NAME = "name";
+    public static final String NILLABLE = "nillable";
     public static final String OPERATION = "operation";
     public static final String OPERATION_HEADERS = "operation-headers";
+    public static final String OUTCOME = "outcome";
     public static final String PROFILE = "profile";
+    public static final String READ_CHILDREN_NAMES = "read-children-names";
     public static final String READ_CHILDREN_TYPES = "read-children-types";
     public static final String READ_ONLY = "read-only";
     public static final String READ_OPERATION_DESCRIPTION = "read-operation-description";
     public static final String READ_OPERATION_NAMES = "read-operation-names";
     public static final String READ_WRITE = "read-write";
-    public static final String REQUEST_PROPERTIES = "request-properties";
+    public static final String READ_RESOURCE = "read-resource";
     public static final String READ_RESOURCE_DESCRIPTION = "read-resource-description";
+    public static final String REQUEST_PROPERTIES = "request-properties";
+    public static final String REQUIRED = "required";
+    public static final String RESTART_REQUIRED = "restart-required";
     public static final String RESULT = "result";
     public static final String ROLLOUT_PLAN = "rollout-plan";
     public static final String RUNTIME_NAME = "runtime-name";
     public static final String SERVER_GROUP = "server-group";
+    public static final String STEP_1 = "step-1";
+    public static final String STEP_2 = "step-2";
+    public static final String STEP_3 = "step-3";
     public static final String STEPS = "steps";
+    public static final String STORAGE = "storage";
+    public static final String SUCCESS = "success";
+    public static final String TAIL_COMMENT_ALLOWED = "tail-comment-allowed";
+    public static final String TRUE = "true";
     public static final String TYPE = "type";
+    public static final String VALIDATE_ADDRESS = "validate-address";
     public static final String VALUE = "value";
     public static final String WRITE_ATTRIBUTE = "write-attribute";
 
@@ -78,8 +98,7 @@ public class Util {
 
     public static boolean isSuccess(ModelNode operationResult) {
         if(operationResult != null) {
-            ModelNode outcome = operationResult.get("outcome");
-            return outcome != null && outcome.asString().equals("success");
+            return operationResult.hasDefined(Util.OUTCOME) && operationResult.get(Util.OUTCOME).asString().equals(Util.SUCCESS);
         }
         return false;
     }
@@ -96,13 +115,11 @@ public class Util {
     }
 
     public static List<String> getList(ModelNode operationResult) {
-        if(!operationResult.hasDefined("result"))
+        if(!operationResult.hasDefined(Util.RESULT))
             return Collections.emptyList();
-
-        List<ModelNode> nodeList = operationResult.get("result").asList();
+        List<ModelNode> nodeList = operationResult.get(Util.RESULT).asList();
         if(nodeList.isEmpty())
             return Collections.emptyList();
-
         List<String> list = new ArrayList<String>(nodeList.size());
         for(ModelNode node : nodeList) {
             list.add(node.asString());
@@ -356,7 +373,7 @@ public class Util {
         ModelNode request;
         DefaultOperationRequestBuilder builder = new DefaultOperationRequestBuilder(address);
         try {
-            builder.setOperationName("read-children-types");
+            builder.setOperationName(Util.READ_CHILDREN_TYPES);
             request = builder.buildRequest();
         } catch (OperationFormatException e1) {
             throw new IllegalStateException("Failed to build operation", e1);

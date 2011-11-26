@@ -27,15 +27,14 @@ import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.BOO
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.DEPLOYMENT;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.DESCRIBE;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.EXTENSION;
-import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.HOST;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.INTERFACE;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.JVM;
-import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.NAMESPACES;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.PATH;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.PROCESS_TYPE;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.PROFILE;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.RELEASE_CODENAME;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.RELEASE_VERSION;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.REMOVE;
-import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SCHEMA_LOCATIONS;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SERVER_GROUP;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SOCKET_BINDING_GROUP;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SOCKET_BINDING_PORT_OFFSET;
@@ -55,11 +54,13 @@ import org.jboss.as.controller.operations.common.ExtensionRemoveHandler;
 import org.jboss.as.controller.operations.common.InterfaceAddHandler;
 import org.jboss.as.controller.operations.common.InterfaceCriteriaWriteHandler;
 import org.jboss.as.controller.operations.common.InterfaceLegacyCriteriaReadHandler;
+import org.jboss.as.controller.operations.common.InterfaceRemoveHandler;
 import org.jboss.as.controller.operations.common.JVMHandlers;
 import org.jboss.as.controller.operations.common.NamespaceAddHandler;
 import org.jboss.as.controller.operations.common.NamespaceRemoveHandler;
 import org.jboss.as.controller.operations.common.PathAddHandler;
 import org.jboss.as.controller.operations.common.PathRemoveHandler;
+import org.jboss.as.controller.operations.common.ResolveExpressionHandler;
 import org.jboss.as.controller.operations.common.SchemaLocationAddHandler;
 import org.jboss.as.controller.operations.common.SchemaLocationRemoveHandler;
 import org.jboss.as.controller.operations.common.SnapshotDeleteHandler;
@@ -86,6 +87,7 @@ import org.jboss.as.domain.controller.operations.ProfileAddHandler;
 import org.jboss.as.domain.controller.operations.ProfileDescribeHandler;
 import org.jboss.as.domain.controller.operations.ProfileRemoveHandler;
 import org.jboss.as.domain.controller.operations.ReadMasterDomainModelHandler;
+import org.jboss.as.domain.controller.operations.ResolveExpressionOnDomainHandler;
 import org.jboss.as.domain.controller.operations.ServerGroupAddHandler;
 import org.jboss.as.domain.controller.operations.ServerGroupRemoveHandler;
 import org.jboss.as.domain.controller.operations.SocketBindingGroupAddHandler;
@@ -108,6 +110,7 @@ import org.jboss.as.server.deployment.repository.api.ContentRepository;
 import org.jboss.as.server.operations.LaunchTypeHandler;
 import org.jboss.as.server.services.net.LocalDestinationOutboundSocketBindingResourceDefinition;
 import org.jboss.as.server.services.net.RemoteDestinationOutboundSocketBindingResourceDefinition;
+import org.jboss.as.version.Version;
 import org.jboss.dmr.ModelNode;
 import org.jboss.dmr.ModelType;
 
@@ -125,26 +128,28 @@ public class DomainModelUtil {
      * @param rootModel - the model to be updated.
      */
     public static void updateCoreModel(final ModelNode rootModel) {
-        //
+
+        rootModel.get(RELEASE_VERSION).set(Version.AS_VERSION);
+        rootModel.get(RELEASE_CODENAME).set(Version.AS_RELEASE_CODENAME);
     }
 
     public static ExtensionContext initializeMasterDomainRegistry(final ManagementResourceRegistration root, final ExtensibleConfigurationPersister configurationPersister,
                                                                   final ContentRepository contentRepository, final FileRepository fileRepository,
                                                                   final DomainController domainController, final UnregisteredHostChannelRegistry registry) {
-        return initializeDomainRegistry(root, configurationPersister, contentRepository, fileRepository, true, domainController, registry);
+        return initializeDomainRegistry(root, configurationPersister, contentRepository, fileRepository, true, domainController, registry, domainController.getLocalHostInfo());
     }
 
     public static ExtensionContext initializeSlaveDomainRegistry(final ManagementResourceRegistration root, final ExtensibleConfigurationPersister configurationPersister,
-                                                                 final FileRepository fileRepository) {
-        return initializeDomainRegistry(root, configurationPersister, null, fileRepository, false, null, null);
+                                                                 final FileRepository fileRepository, final LocalHostControllerInfo hostControllerInfo) {
+        return initializeDomainRegistry(root, configurationPersister, null, fileRepository, false, null, null, hostControllerInfo);
     }
 
     private static ExtensionContext initializeDomainRegistry(final ManagementResourceRegistration root, final ExtensibleConfigurationPersister configurationPersister,
                                                              final ContentRepository contentRepo, final FileRepository fileRepository, final boolean isMaster,
-                                                             final DomainController domainController, final UnregisteredHostChannelRegistry registry) {
+                                                             final DomainController domainController, final UnregisteredHostChannelRegistry registry, final LocalHostControllerInfo hostControllerInfo) {
 
         final EnumSet<OperationEntry.Flag> readOnly = EnumSet.of(OperationEntry.Flag.READ_ONLY);
-        final EnumSet<OperationEntry.Flag> deploymentUpload = EnumSet.of(OperationEntry.Flag.DEPLOYMENT_UPLOAD);
+        final EnumSet<OperationEntry.Flag> deploymentUpload = EnumSet.of(OperationEntry.Flag.MASTER_HOST_CONTROLLER_ONLY);
 
         // Other root resource operations
         root.registerOperationHandler(CompositeOperationHandler.NAME, CompositeOperationHandler.INSTANCE, CompositeOperationHandler.INSTANCE, false, OperationEntry.EntryType.PRIVATE);
@@ -174,6 +179,9 @@ public class DomainModelUtil {
 
         root.registerOperationHandler(GlobalOperationHandlers.VALIDATE_ADDRESS_OPERATION_NAME, GlobalOperationHandlers.VALIDATE_ADDRESS, CommonProviders.VALIDATE_ADDRESS_PROVIDER, true);
 
+        root.registerOperationHandler(ResolveExpressionOnDomainHandler.OPERATION_NAME, ResolveExpressionOnDomainHandler.INSTANCE,
+                ResolveExpressionOnDomainHandler.INSTANCE, EnumSet.of(OperationEntry.Flag.READ_ONLY, OperationEntry.Flag.DOMAIN_PUSH_TO_SERVERS));
+
         // System Properties
         ManagementResourceRegistration systemProperties = root.registerSubModel(PathElement.pathElement(SYSTEM_PROPERTY), DomainDescriptionProviders.SYSTEM_PROPERTY_PROVIDER);
         systemProperties.registerOperationHandler(SystemPropertyAddHandler.OPERATION_NAME, SystemPropertyAddHandler.INSTANCE_WITH_BOOTTIME, SystemPropertyAddHandler.INSTANCE_WITH_BOOTTIME, false);
@@ -183,7 +191,7 @@ public class DomainModelUtil {
 
         final ManagementResourceRegistration interfaces = root.registerSubModel(PathElement.pathElement(INTERFACE), CommonProviders.NAMED_INTERFACE_PROVIDER);
         interfaces.registerOperationHandler(ADD, InterfaceAddHandler.NAMED_INSTANCE, InterfaceAddHandler.NAMED_INSTANCE, false);
-        interfaces.registerOperationHandler(REMOVE, InterfaceAddHandler.NAMED_INSTANCE, InterfaceAddHandler.NAMED_INSTANCE, false);
+        interfaces.registerOperationHandler(REMOVE, InterfaceRemoveHandler.INSTANCE, InterfaceRemoveHandler.INSTANCE, false);
         InterfaceCriteriaWriteHandler.register(interfaces);
         interfaces.registerReadOnlyAttribute(ModelDescriptionConstants.CRITERIA, InterfaceLegacyCriteriaReadHandler.INSTANCE, Storage.CONFIGURATION);
 
@@ -238,18 +246,17 @@ public class DomainModelUtil {
         final ManagementResourceRegistration extensions = root.registerSubModel(PathElement.pathElement(EXTENSION), CommonProviders.EXTENSION_PROVIDER);
         final ExtensionContext extensionContext = new ExtensionContextImpl(profile, deployments, configurationPersister,
                 isMaster ? ExtensionContext.ProcessType.MASTER_HOST_CONTROLLER : ExtensionContext.ProcessType.SLAVE_HOST_CONTROLLER);
-        final ExtensionAddHandler addExtensionHandler = new ExtensionAddHandler(extensionContext);
+        final ExtensionAddHandler addExtensionHandler = new ExtensionAddHandler(extensionContext, true);
         extensions.registerOperationHandler(ExtensionAddHandler.OPERATION_NAME, addExtensionHandler, addExtensionHandler, false);
         extensions.registerOperationHandler(ExtensionRemoveHandler.OPERATION_NAME, ExtensionRemoveHandler.INSTANCE, ExtensionRemoveHandler.INSTANCE, false);
 
         if(!isMaster) {
-            ApplyRemoteMasterDomainModelHandler armdmh = new ApplyRemoteMasterDomainModelHandler(extensionContext, fileRepository);
+            ApplyRemoteMasterDomainModelHandler armdmh = new ApplyRemoteMasterDomainModelHandler(extensionContext, fileRepository, hostControllerInfo);
             root.registerOperationHandler(ApplyRemoteMasterDomainModelHandler.OPERATION_NAME, armdmh, armdmh, false, OperationEntry.EntryType.PRIVATE);
         } else {
             ReadMasterDomainModelHandler rmdmh = new ReadMasterDomainModelHandler(domainController, registry);
             root.registerOperationHandler(ReadMasterDomainModelHandler.OPERATION_NAME, rmdmh, rmdmh, false, OperationEntry.EntryType.PRIVATE, EnumSet.of(OperationEntry.Flag.READ_ONLY));
         }
-
 
         return extensionContext;
     }

@@ -21,6 +21,12 @@
  */
 package org.jboss.as.ejb3.component.stateful;
 
+import java.rmi.RemoteException;
+
+import javax.ejb.ConcurrentAccessException;
+import javax.ejb.ConcurrentAccessTimeoutException;
+import javax.ejb.NoSuchEJBException;
+
 import org.jboss.as.ee.component.ComponentInstance;
 import org.jboss.as.ejb3.component.interceptors.AbstractEJBInterceptor;
 import org.jboss.ejb.client.SessionID;
@@ -30,10 +36,8 @@ import org.jboss.invocation.InterceptorFactory;
 import org.jboss.invocation.InterceptorFactoryContext;
 import org.jboss.logging.Logger;
 
-import javax.ejb.ConcurrentAccessException;
-import javax.ejb.ConcurrentAccessTimeoutException;
-import java.rmi.RemoteException;
-
+import static org.jboss.as.ejb3.EjbLogger.ROOT_LOGGER;
+import static org.jboss.as.ejb3.EjbMessages.MESSAGES;
 /**
  * Associate the proper component instance to the invocation based on the passed in session identifier.
  *
@@ -51,10 +55,14 @@ public class StatefulComponentInstanceInterceptor extends AbstractEJBInterceptor
         // TODO: this is a contract with the client interceptor
         SessionID sessionId = (SessionID) context.getPrivateData(SessionID.SESSION_ID_KEY);
         if (sessionId == null) {
-            throw new IllegalStateException("Session id hasn't been set for stateful component: " + component.getComponentName());
+            throw MESSAGES.statefulSessionIdIsNull(component.getComponentName());
         }
-        log.debug("Looking for stateful component instance with session id: " + sessionId);
+        ROOT_LOGGER.debug("Looking for stateful component instance with session id: " + sessionId);
         StatefulSessionComponentInstance instance = component.getCache().get(sessionId);
+        if(instance == null) {
+            //This exception will be transformed into the correct exception type by the exception transforming interceptor
+            throw new NoSuchEJBException("Could not find SFSB " + component.getComponentName() + " with " + sessionId);
+        }
         try {
             context.putPrivateData(ComponentInstance.class, instance);
             return context.proceed();
@@ -68,19 +76,19 @@ public class StatefulComponentInstanceInterceptor extends AbstractEJBInterceptor
                 throw ex;
             }
             if (ex instanceof RuntimeException || ex instanceof RemoteException) {
-                if (log.isTraceEnabled())
-                    log.trace("Removing bean " + sessionId + " because of exception", ex);
+                if (ROOT_LOGGER.isTraceEnabled())
+                    ROOT_LOGGER.trace("Removing bean " + sessionId + " because of exception", ex);
                 component.getCache().discard(sessionId);
             }
             throw ex;
         } catch (final Error e) {
-            if (log.isTraceEnabled())
-                log.trace("Removing bean " + sessionId + " because of error", e);
+            if (ROOT_LOGGER.isTraceEnabled())
+                ROOT_LOGGER.trace("Removing bean " + sessionId + " because of error", e);
             component.getCache().discard(sessionId);
             throw e;
         } catch (final Throwable t) {
-            if (log.isTraceEnabled())
-                log.trace("Removing bean " + sessionId + " because of Throwable", t);
+            if (ROOT_LOGGER.isTraceEnabled())
+                ROOT_LOGGER.trace("Removing bean " + sessionId + " because of Throwable", t);
             component.getCache().discard(sessionId);
             throw new RuntimeException(t);
         } finally {

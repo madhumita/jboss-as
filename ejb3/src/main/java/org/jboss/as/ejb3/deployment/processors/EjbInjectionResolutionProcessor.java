@@ -21,22 +21,25 @@
  */
 package org.jboss.as.ejb3.deployment.processors;
 
+import java.util.List;
+
 import org.jboss.as.ejb3.deployment.EjbDeploymentAttachmentKeys;
 import org.jboss.as.server.deployment.DeploymentPhaseContext;
 import org.jboss.as.server.deployment.DeploymentUnit;
 import org.jboss.as.server.deployment.DeploymentUnitProcessingException;
 import org.jboss.as.server.deployment.DeploymentUnitProcessor;
 
-import java.util.List;
-
 /**
+ * Processor that resolves all EJB injections. This cannot be done when they are first discovered, as
+ * they may resolve to EJB's in other deployments.
+ *
  * @author Stuart Douglas
  */
 public class EjbInjectionResolutionProcessor implements DeploymentUnitProcessor {
     @Override
     public void deploy(final DeploymentPhaseContext phaseContext) throws DeploymentUnitProcessingException {
         final List<EjbInjectionSource> injections = phaseContext.getDeploymentUnit().getAttachmentList(EjbDeploymentAttachmentKeys.EJB_INJECTIONS);
-        for (EjbInjectionSource injection : injections) {
+        for (final EjbInjectionSource injection : injections) {
             injection.resolve(phaseContext);
         }
 

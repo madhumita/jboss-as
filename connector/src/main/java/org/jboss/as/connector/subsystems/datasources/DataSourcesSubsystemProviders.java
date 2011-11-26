@@ -42,6 +42,7 @@ import static org.jboss.as.connector.subsystems.datasources.Constants.XADATASOUR
 import static org.jboss.as.connector.subsystems.datasources.Constants.XADATASOURCE_PROPERTIES;
 import static org.jboss.as.connector.subsystems.datasources.Constants.XADATASOURCE_PROPERTY_VALUE;
 import static org.jboss.as.connector.subsystems.datasources.Constants.XA_DATASOURCE;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.ACCESS_TYPE;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.ADD;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.ATTRIBUTES;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.CHILDREN;
@@ -54,6 +55,8 @@ import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.NAM
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.NILLABLE;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OPERATIONS;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OPERATION_NAME;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.PERSISTENT;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.READ_ONLY;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.REMOVE;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.REPLY_PROPERTIES;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.REQUEST_PROPERTIES;
@@ -102,7 +105,7 @@ class DataSourcesSubsystemProviders {
             org.jboss.as.connector.pool.Constants.BACKGROUNDVALIDATION,
             org.jboss.as.connector.pool.Constants.USE_FAST_FAIL,
             Constants.VALIDATEONMATCH, Constants.SPY,
-            Constants.USE_CCM, Constants.ENABLED };
+            Constants.USE_CCM};
 
     static final SimpleAttributeDefinition[] XA_DATASOURCE_ATTRIBUTE = new SimpleAttributeDefinition[] {
             Constants.XADATASOURCECLASS, Constants.JNDINAME, Constants.DATASOURCE_DRIVER,
@@ -130,8 +133,12 @@ class DataSourcesSubsystemProviders {
             Constants.SPY, Constants.USE_CCM,
             Constants.RECOVERY_USERNAME, Constants.RECOVERY_PASSWORD,
             Constants.RECOVERY_SECURITY_DOMAIN, Constants.RECOVERLUGIN_CLASSNAME,
-            Constants.RECOVERLUGIN_PROPERTIES, Constants.NO_RECOVERY,
-            Constants.ENABLED };
+            Constants.RECOVERLUGIN_PROPERTIES, Constants.NO_RECOVERY};
+
+    static final SimpleAttributeDefinition[] READONLY_DATASOURCE_ATTRIBUTE = new SimpleAttributeDefinition[] {Constants.ENABLED };
+
+    static final SimpleAttributeDefinition[] READONLY_XA_DATASOURCE_ATTRIBUTE = new SimpleAttributeDefinition[] {Constants.ENABLED };
+
 
     static final String RESOURCE_NAME = DataSourcesSubsystemProviders.class.getPackage().getName() + ".LocalDescriptions";
 
@@ -571,6 +578,12 @@ class DataSourcesSubsystemProviders {
                     node.get(ATTRIBUTES, propertyType.getName(), DEFAULT).set(propertyType.getDefaultValue().toString());
             }
 
+            for (SimpleAttributeDefinition propertyType : READONLY_DATASOURCE_ATTRIBUTE) {
+                node.get(ATTRIBUTES, propertyType.getName(), DESCRIPTION).set(bundle.getString(propertyType.getName()));
+                node.get(ATTRIBUTES, propertyType.getName(), TYPE).set(propertyType.getType());
+                node.get(ATTRIBUTES, propertyType.getName(), ACCESS_TYPE, READ_ONLY).set(true);
+            }
+
             for (String name : LocalAndXaDataSourcesJdbcMetrics.ATTRIBUTES) {
                 node.get(ATTRIBUTES, name, DESCRIPTION).set(jdbcMetrics.getDescription(name));
                 ModelType modelType = ModelType.STRING;
@@ -643,6 +656,11 @@ class DataSourcesSubsystemProviders {
             final ModelNode operation = new ModelNode();
             operation.get(OPERATION_NAME).set(ENABLE);
             operation.get(DESCRIPTION).set(bundle.getString("data-source.enable"));
+            operation.get(REQUEST_PROPERTIES, PERSISTENT, DESCRIPTION).set(
+                    bundle.getString(PERSISTENT));
+            operation.get(REQUEST_PROPERTIES, PERSISTENT, TYPE).set(ModelType.BOOLEAN);
+            operation.get(REQUEST_PROPERTIES, PERSISTENT, REQUIRED).set(false);
+            operation.get(REQUEST_PROPERTIES, PERSISTENT, DEFAULT).set(true);
             return operation;
         }
     };
@@ -707,6 +725,12 @@ class DataSourcesSubsystemProviders {
                 node.get(ATTRIBUTES, propertyType.getName(), REQUIRED).set(! propertyType.isAllowNull());
                 if (propertyType.getDefaultValue() != null)
                     node.get(ATTRIBUTES, propertyType.getName(), DEFAULT).set(propertyType.getDefaultValue().toString());
+            }
+
+            for (SimpleAttributeDefinition propertyType : READONLY_XA_DATASOURCE_ATTRIBUTE) {
+                node.get(ATTRIBUTES, propertyType.getName(), DESCRIPTION).set(bundle.getString(propertyType.getName()));
+                node.get(ATTRIBUTES, propertyType.getName(), TYPE).set(propertyType.getType());
+                node.get(ATTRIBUTES, propertyType.getName(), ACCESS_TYPE, READ_ONLY).set(true);
             }
 
             for (String name : LocalAndXaDataSourcesJdbcMetrics.ATTRIBUTES) {

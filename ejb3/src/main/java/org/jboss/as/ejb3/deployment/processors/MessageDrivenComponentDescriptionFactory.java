@@ -47,6 +47,7 @@ import org.jboss.jandex.AnnotationValue;
 import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
 import org.jboss.logging.Logger;
+import org.jboss.metadata.ejb.jboss.ejb3.JBossGenericBeanMetaData;
 import org.jboss.metadata.ejb.spec.ActivationConfigMetaData;
 import org.jboss.metadata.ejb.spec.ActivationConfigPropertiesMetaData;
 import org.jboss.metadata.ejb.spec.ActivationConfigPropertyMetaData;
@@ -105,7 +106,8 @@ public class MessageDrivenComponentDescriptionFactory extends EJBComponentDescri
             final String messagingType;
             if (beanMetaData != null) {
                 beanClassName = override(beanClassInfo.name().toString(), beanMetaData.getEjbClass());
-                deploymentDescriptorEnvironment = new DeploymentDescriptorEnvironment("java:comp/env/",beanMetaData);
+                deploymentDescriptorEnvironment = new DeploymentDescriptorEnvironment("java:comp/env/", beanMetaData);
+
                 if (beanMetaData instanceof MessageDrivenBeanMetaData) {
                     //It may actually be GenericBeanMetadata instance
                     final MessageDrivenBeanMetaData mdb = (MessageDrivenBeanMetaData) beanMetaData;
@@ -114,7 +116,20 @@ public class MessageDrivenComponentDescriptionFactory extends EJBComponentDescri
                     if (activationConfigMetaData != null) {
                         final ActivationConfigPropertiesMetaData propertiesMetaData = activationConfigMetaData.getActivationConfigProperties();
                         if (propertiesMetaData != null) {
-                            for (ActivationConfigPropertyMetaData propertyMetaData : propertiesMetaData) {
+                            for (final ActivationConfigPropertyMetaData propertyMetaData : propertiesMetaData) {
+                                activationConfigProperties.put(propertyMetaData.getKey(), propertyMetaData.getValue());
+                            }
+                        }
+                    }
+                } else if (beanMetaData instanceof JBossGenericBeanMetaData) {
+                    //TODO: fix the heirachy so this is not needed
+                    final JBossGenericBeanMetaData mdb = (JBossGenericBeanMetaData) beanMetaData;
+                    messagingType = mdb.getMessagingType();
+                    final ActivationConfigMetaData activationConfigMetaData = mdb.getActivationConfig();
+                    if (activationConfigMetaData != null) {
+                        final ActivationConfigPropertiesMetaData propertiesMetaData = activationConfigMetaData.getActivationConfigProperties();
+                        if (propertiesMetaData != null) {
+                            for (final ActivationConfigPropertyMetaData propertyMetaData : propertiesMetaData) {
                                 activationConfigProperties.put(propertyMetaData.getKey(), propertyMetaData.getValue());
                             }
                         }
@@ -225,7 +240,7 @@ public class MessageDrivenComponentDescriptionFactory extends EJBComponentDescri
         // add it to the ejb jar description
         ejbJarDescription.getEEModuleDescription().addComponent(mdbComponentDescription);
         mdbComponentDescription.setDescriptorData(mdb);
-        mdbComponentDescription.setDeploymentDescriptorEnvironment(new DeploymentDescriptorEnvironment("java:comp/env/",mdb));
+        mdbComponentDescription.setDeploymentDescriptorEnvironment(new DeploymentDescriptorEnvironment("java:comp/env/", mdb));
     }
 
     private Properties getActivationConfigProperties(final AnnotationInstance messageBeanAnnotation) {

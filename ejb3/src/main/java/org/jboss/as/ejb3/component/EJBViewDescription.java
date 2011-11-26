@@ -27,8 +27,11 @@ import org.jboss.as.ee.component.ComponentDescription;
 import org.jboss.as.ee.component.EEModuleDescription;
 import org.jboss.as.ee.component.InjectionSource;
 import org.jboss.as.ee.component.ViewConfiguration;
+import org.jboss.as.ee.component.ViewConfigurator;
 import org.jboss.as.ee.component.ViewDescription;
 import org.jboss.as.ejb3.remote.RemoteViewInjectionSource;
+import org.jboss.as.server.deployment.DeploymentPhaseContext;
+import org.jboss.as.server.deployment.DeploymentUnitProcessingException;
 import org.jboss.invocation.proxy.ProxyFactory;
 import org.jboss.msc.service.ServiceName;
 
@@ -49,10 +52,19 @@ public class EJBViewDescription extends ViewDescription {
     private final boolean ejb2xView;
 
     public EJBViewDescription(final ComponentDescription componentDescription, final String viewClassName, final MethodIntf methodIntf, final boolean ejb2xView) {
-        super(componentDescription, viewClassName);
+        //only add the default configurator if an 3jb 3.x business view
+        super(componentDescription, viewClassName, !ejb2xView && methodIntf != MethodIntf.HOME && methodIntf != MethodIntf.LOCAL_HOME );
         this.methodIntf = methodIntf;
         this.ejb2xView = ejb2xView;
         hasJNDIBindings = initHasJNDIBindings(methodIntf);
+
+        //add a configurator to attach the MethodIntf for this view
+        getConfigurators().add(new ViewConfigurator() {
+            @Override
+            public void configure(final DeploymentPhaseContext context, final ComponentConfiguration componentConfiguration, final ViewDescription description, final ViewConfiguration configuration) throws DeploymentUnitProcessingException {
+                configuration.putPrivateData(MethodIntf.class, getMethodIntf());
+            }
+        });
     }
 
     public MethodIntf getMethodIntf() {
@@ -86,7 +98,8 @@ public class EJBViewDescription extends ViewDescription {
         } else {
             final EJBComponentDescription componentDescription = getComponentDescription();
             final EEModuleDescription desc = componentDescription.getModuleDescription();
-            return new RemoteViewInjectionSource(serviceName, desc.getApplicationName(), desc.getModuleName(), desc.getDistinctName(), componentDescription.getComponentName(), getViewClassName() , componentDescription.isStateful());
+            final String earApplicationName = desc.getEarApplicationName();
+            return new RemoteViewInjectionSource(serviceName, earApplicationName, desc.getModuleName(), desc.getDistinctName(), componentDescription.getComponentName(), getViewClassName() , componentDescription.isStateful());
         }
     }
 
@@ -129,4 +142,5 @@ public class EJBViewDescription extends ViewDescription {
     public boolean isEjb2xView() {
         return ejb2xView;
     }
+
 }

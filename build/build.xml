@@ -51,7 +51,7 @@
                 <include name="welcome-content/**"/>
             </fileset>
         </copy>
-        <chmod perm="+x">
+        <chmod perm="755">
             <fileset dir="${output.dir}/bin">
                 <include name="**/*.sh"/>
             </fileset>
@@ -61,7 +61,9 @@
     <target name="make-dirs">
         <mkdir dir="${output.dir}/domain/content"/>
         <mkdir dir="${output.dir}/standalone/lib/ext"/>
-        <mkdir dir="${output.dir}/domain/lib/ext"/>
+        <mkdir dir="${output.dir}/auth"/>
+         <!-- This is directory is used by the SASL transparent auth mechanism to validate local user access -->
+        <chmod perm="700" dir="${output.dir}/auth"/>
     </target>
 
     <target name="create-ext-content">
@@ -258,10 +260,6 @@
             <maven-resource group="jline" artifact="jline"/>
         </module-def>
 
-        <module-def name="juddi">
-            <maven-resource group="juddi" artifact="juddi"/>
-        </module-def>
-
         <module-def name="net.sourceforge.cssparser">
             <maven-resource group="net.sourceforge.cssparser" artifact="cssparser"/>
         </module-def>
@@ -300,6 +298,10 @@
         </module-def>
 
         <module-def name="org.apache.commons.logging"/>
+
+        <module-def name="org.apache.commons.pool">
+            <maven-resource group="commons-pool" artifact="commons-pool"/>
+        </module-def>
 
         <module-def name="org.apache.cxf">
             <maven-resource group="org.apache.cxf" artifact="cxf-api"/>
@@ -428,7 +430,12 @@
         </module-def>
 
         <module-def name="org.infinispan">
+            <maven-resource group="org.infinispan" artifact="infinispan-api"/>
+            <maven-resource group="org.infinispan" artifact="infinispan-commons"/>
             <maven-resource group="org.infinispan" artifact="infinispan-core"/>
+            <maven-resource group="org.infinispan" artifact="infinispan-cachestore-jdbc"/>
+            <maven-resource group="org.infinispan" artifact="infinispan-cachestore-remote"/>
+            <maven-resource group="org.infinispan" artifact="infinispan-client-hotrod"/>
         </module-def>
 
         <module-def name="org.jacorb">
@@ -451,6 +458,10 @@
 
         <module-def name="org.jboss.as.appclient">
             <maven-resource group="org.jboss.as" artifact="jboss-as-appclient"/>
+        </module-def>
+
+        <module-def name="org.jboss.as.console">
+            <maven-resource-with-classifier group="org.jboss.as" artifact="jboss-as-console" classifier="resources"/>
         </module-def>
 
         <module-def name="org.jboss.as.cli">
@@ -509,8 +520,14 @@
             <maven-resource group="org.jboss.as" artifact="jboss-as-deployment-scanner"/>
         </module-def>
 
-        <module-def name="org.jboss.as.domain-http-api">
-            <maven-resource group="org.jboss.as" artifact="jboss-as-domain-http-api"/>
+    	<module-def name="org.jboss.as.domain-add-user" />
+
+        <module-def name="org.jboss.as.domain-http-error-context">
+            <maven-resource group="org.jboss.as" artifact="jboss-as-domain-http-error-context"/>
+        </module-def>        	
+    	
+        <module-def name="org.jboss.as.domain-http-interface">
+            <maven-resource group="org.jboss.as" artifact="jboss-as-domain-http-interface"/>
         </module-def>
 
         <module-def name="org.jboss.as.domain-controller">
@@ -543,10 +560,6 @@
 
         <module-def name="org.jboss.as.jacorb">
             <maven-resource group="org.jboss.as" artifact="jboss-as-jacorb"/>
-        </module-def>
-
-        <module-def name="org.jboss.as.jaxr">
-            <maven-resource group="org.jboss.as" artifact="jboss-as-jaxr"/>
         </module-def>
 
         <module-def name="org.jboss.as.jaxrs">
@@ -689,7 +702,6 @@
 
         <module-def name="org.jboss.com.sun.httpserver">
             <maven-resource group="org.jboss.com.sun.httpserver" artifact="httpserver"/>
-            <maven-resource-with-classifier group="org.jboss.as" artifact="jboss-as-console" classifier="resources"/>
         </module-def>
 
         <module-def name="org.jboss.dmr">

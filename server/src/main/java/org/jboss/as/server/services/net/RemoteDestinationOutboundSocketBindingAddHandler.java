@@ -31,7 +31,6 @@ import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.POR
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SOURCE_INTERFACE;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SOURCE_PORT;
 
-import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
 
@@ -85,9 +84,6 @@ public class RemoteDestinationOutboundSocketBindingAddHandler extends AbstractAd
     @Override
     protected void populateModel(final ModelNode operation, final ModelNode model) throws OperationFailedException {
 
-        final PathAddress address = PathAddress.pathAddress(operation.get(OP_ADDR));
-        final String outboundSocketBindingName = address.getLastElement().getValue();
-        model.get(ModelDescriptionConstants.NAME).set(outboundSocketBindingName);
         model.get(ModelDescriptionConstants.HOST).set(operation.get(ModelDescriptionConstants.HOST));
         model.get(ModelDescriptionConstants.PORT).set(operation.get(ModelDescriptionConstants.PORT));
         if (operation.hasDefined(ModelDescriptionConstants.SOURCE_INTERFACE)) {
@@ -105,7 +101,8 @@ public class RemoteDestinationOutboundSocketBindingAddHandler extends AbstractAd
     protected void performRuntime(final OperationContext context, final ModelNode operation, final ModelNode model,
                                   final ServiceVerificationHandler verificationHandler, final List<ServiceController<?>> serviceControllers) throws OperationFailedException {
 
-        final String outboundSocketName = model.get(ModelDescriptionConstants.NAME).asString();
+        final PathAddress address = PathAddress.pathAddress(operation.get(OP_ADDR));
+        final String outboundSocketName = address.getLastElement().getValue();
         final ServiceController<OutboundSocketBinding> outboundSocketBindingServiceController;
         try {
             outboundSocketBindingServiceController = this.installOutboundSocketBindingService(context, model, outboundSocketName);
@@ -121,7 +118,6 @@ public class RemoteDestinationOutboundSocketBindingAddHandler extends AbstractAd
 
         // destination host
         final String destinationHost = RemoteDestinationOutboundSocketBindingResourceDefinition.HOST.validateResolvedOperation(model).asString();
-        final InetAddress destinationHostAddress = InetAddress.getByName(destinationHost);
         // port
         final int destinationPort = RemoteDestinationOutboundSocketBindingResourceDefinition.PORT.validateResolvedOperation(model).asInt();
 
@@ -135,7 +131,7 @@ public class RemoteDestinationOutboundSocketBindingAddHandler extends AbstractAd
         final ModelNode fixedSourcePortModelNode = OutboundSocketBindingResourceDefinition.FIXED_SOURCE_PORT.validateResolvedOperation(model);
         final boolean fixedSourcePort = fixedSourcePortModelNode.isDefined() ? fixedSourcePortModelNode.asBoolean() : false;
         // create the service
-        final OutboundSocketBindingService outboundSocketBindingService = new RemoteDestinationOutboundSocketBindingService(outboundSocketName, destinationHostAddress, destinationPort, sourcePort, fixedSourcePort);
+        final OutboundSocketBindingService outboundSocketBindingService = new RemoteDestinationOutboundSocketBindingService(outboundSocketName, destinationHost, destinationPort, sourcePort, fixedSourcePort);
         final ServiceBuilder<OutboundSocketBinding> serviceBuilder = serviceTarget.addService(OutboundSocketBinding.OUTBOUND_SOCKET_BINDING_BASE_SERVICE_NAME.append(outboundSocketName), outboundSocketBindingService);
         // if a source interface has been specified then add a dependency on it
         if (sourceInterfaceName != null) {

@@ -22,8 +22,6 @@
 
 package org.jboss.as.ejb3.deployment.processors;
 
-import static org.jboss.as.ee.component.Attachments.EE_APPLICATION_DESCRIPTION;
-
 import java.util.Set;
 
 import org.jboss.as.ee.component.ComponentView;
@@ -46,6 +44,8 @@ import org.jboss.msc.inject.Injector;
 import org.jboss.msc.service.ServiceBuilder;
 import org.jboss.msc.service.ServiceName;
 
+import static org.jboss.as.ee.component.Attachments.EE_APPLICATION_DESCRIPTION;
+
 /**
  * Implementation of {@link InjectionSource} responsible for finding a specific bean instance with a bean name and interface.
  *
@@ -55,16 +55,19 @@ import org.jboss.msc.service.ServiceName;
 public class EjbInjectionSource extends InjectionSource {
     private final String beanName;
     private final String typeName;
+    private final String bindingName;
     private volatile ServiceName resolvedViewName;
     private volatile RemoteViewManagedReferenceFactory remoteFactory;
     private volatile String error = null;
 
-    public EjbInjectionSource(final String beanName, final String typeName) {
+    public EjbInjectionSource(final String beanName, final String typeName, final String bindingName) {
         this.beanName = beanName;
         this.typeName = typeName;
+        this.bindingName = bindingName;
     }
 
-    public EjbInjectionSource(final String typeName) {
+    public EjbInjectionSource(final String typeName, final String bindingName) {
+        this.bindingName = bindingName;
         this.beanName = null;
         this.typeName = typeName;
     }
@@ -83,15 +86,13 @@ public class EjbInjectionSource extends InjectionSource {
     }
 
     public void resolve(final DeploymentPhaseContext phaseContext) throws DeploymentUnitProcessingException {
-        final DeploymentUnit deploymentUnit = phaseContext.getDeploymentUnit();
         final Set<ViewDescription> componentsForViewName = getViews(phaseContext);
-        //we cannot be sure that this injection will actually be used, so we wait until getResourceValue is called to throw an exception
         if (componentsForViewName.isEmpty()) {
-            error = "No component found for type '" + typeName + "' with name " + beanName;
+            error = "No component found for type '" + typeName + "' with name " + beanName + " for binding " + bindingName;
             return ;
         }
         if (componentsForViewName.size() > 1) {
-            error = "More than 1 component found for type '" + typeName + "' and bean name " + beanName;
+            error = "More than 1 component found for type '" + typeName + "' and bean name " + beanName + " for binding " + bindingName;
             return ;
         }
         ViewDescription description = componentsForViewName.iterator().next();
@@ -103,7 +104,8 @@ public class EjbInjectionSource extends InjectionSource {
             if(ejbViewDescription.getMethodIntf() == MethodIntf.REMOTE || ejbViewDescription.getMethodIntf() == MethodIntf.HOME) {
                 final EJBComponentDescription componentDescription = (EJBComponentDescription) description.getComponentDescription();
                 final EEModuleDescription moduleDescription = componentDescription.getModuleDescription();
-                remoteFactory = new RemoteViewManagedReferenceFactory(moduleDescription.getApplicationName(), moduleDescription.getModuleName(), moduleDescription.getDistinctName(), componentDescription.getComponentName(), description.getViewClassName(), componentDescription.isStateful());
+                final String earApplicationName = moduleDescription.getEarApplicationName();
+                remoteFactory = new RemoteViewManagedReferenceFactory(earApplicationName, moduleDescription.getModuleName(), moduleDescription.getDistinctName(), componentDescription.getComponentName(), description.getViewClassName(), componentDescription.isStateful());
             }
         }
         ServiceName serviceName = description.getServiceName();

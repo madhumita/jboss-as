@@ -21,10 +21,11 @@
  */
 package org.jboss.as.webservices.metadata;
 
+import static org.jboss.as.webservices.WSLogger.ROOT_LOGGER;
+
 import java.util.List;
 
 import org.jboss.as.webservices.metadata.model.EJBEndpoint;
-import org.jboss.logging.Logger;
 import org.jboss.ws.common.integration.WSHelper;
 import org.jboss.wsf.spi.deployment.Deployment;
 import org.jboss.wsf.spi.metadata.j2ee.EJBArchiveMetaData;
@@ -32,16 +33,14 @@ import org.jboss.wsf.spi.metadata.j2ee.EJBMetaData;
 import org.jboss.wsf.spi.metadata.j2ee.EJBSecurityMetaData;
 import org.jboss.wsf.spi.metadata.j2ee.PublishLocationAdapter;
 import org.jboss.wsf.spi.metadata.j2ee.SLSBMetaData;
-import org.jboss.wsf.spi.metadata.webservices.JBossWebservicesMetaData;
 import org.jboss.wsf.spi.metadata.webservices.JBossPortComponentMetaData;
 import org.jboss.wsf.spi.metadata.webservices.JBossWebserviceDescriptionMetaData;
+import org.jboss.wsf.spi.metadata.webservices.JBossWebservicesMetaData;
 
 /**
  * @author <a href="mailto:ropalka@redhat.com">Richard Opalka</a>
  */
 abstract class AbstractMetaDataBuilderEJB {
-
-    protected final Logger log = Logger.getLogger(this.getClass());
 
     /**
      * Builds universal EJB meta data model that is AS agnostic.
@@ -51,8 +50,7 @@ abstract class AbstractMetaDataBuilderEJB {
      * @return universal EJB meta data model
      */
     final EJBArchiveMetaData create(final Deployment dep) {
-        this.log.debug("Building JBoss agnostic meta data for EJB webservice deployment: " + dep.getSimpleName());
-
+        ROOT_LOGGER.creatingEjbDeployment(dep.getSimpleName());
         final EJBArchiveMetaData ejbArchiveMD = new EJBArchiveMetaData();
 
         this.buildEnterpriseBeansMetaData(dep, ejbArchiveMD);
@@ -92,17 +90,17 @@ abstract class AbstractMetaDataBuilderEJB {
        // set context root
        final String contextRoot = webservicesMD.getContextRoot();
        ejbArchiveMD.setWebServiceContextRoot(contextRoot);
-       this.log.debug("Setting context root: " + contextRoot);
+       ROOT_LOGGER.settingContextRoot(contextRoot);
 
        // set config name
        final String configName = webservicesMD.getConfigName();
-       this.log.debug("Setting config name: " + configName);
        ejbArchiveMD.setConfigName(configName);
+       ROOT_LOGGER.settingConfigName(configName);
 
        // set config file
        final String configFile = webservicesMD.getConfigFile();
-       this.log.debug("Setting config file: " + configFile);
        ejbArchiveMD.setConfigFile(configFile);
+       ROOT_LOGGER.settingConfigFile(configFile);
 
        // set wsdl location resolver
        final JBossWebserviceDescriptionMetaData[] wsDescriptionsMD = webservicesMD.getWebserviceDescriptions();
@@ -128,28 +126,53 @@ abstract class AbstractMetaDataBuilderEJB {
      * @param jbossEjbMD
      *            jboss specific EJB meta data
      */
-    protected void buildEnterpriseBeanMetaData(final List<EJBMetaData> wsEjbsMD, final EJBEndpoint jbossEjbMD, final JBossWebservicesMetaData jbossWebservicesMD) {
+    protected void buildEnterpriseBeanMetaData(final List<EJBMetaData> wsEjbsMD, final EJBEndpoint ejbEndpoint, final JBossWebservicesMetaData jbossWebservicesMD) {
         final EJBMetaData wsEjbMD = new SLSBMetaData();
 
         // set EJB name and class
-        wsEjbMD.setEjbName(jbossEjbMD.getName());
-        wsEjbMD.setEjbClass(jbossEjbMD.getClassName());
+        wsEjbMD.setEjbName(ejbEndpoint.getName());
+        wsEjbMD.setEjbClass(ejbEndpoint.getClassName());
 
-        final JBossPortComponentMetaData portComponentMD = getPortComponent(jbossEjbMD.getName(), jbossWebservicesMD);
+        final JBossPortComponentMetaData portComponentMD = getPortComponent(ejbEndpoint.getName(), jbossWebservicesMD);
         if (portComponentMD != null) {
             // set port component meta data
             wsEjbMD.setPortComponentName(portComponentMD.getPortComponentName());
             wsEjbMD.setPortComponentURI(portComponentMD.getPortComponentURI());
-
-            // set security meta data
-            final EJBSecurityMetaData smd = new EJBSecurityMetaData();
-            smd.setAuthMethod(portComponentMD.getAuthMethod());
-            smd.setTransportGuarantee(portComponentMD.getTransportGuarantee());
-            smd.setSecureWSDLAccess(portComponentMD.getSecureWSDLAccess());
-            wsEjbMD.setSecurityMetaData(smd);
         }
+        // set security meta data
+        buildSecurityMetaData(wsEjbMD, ejbEndpoint, portComponentMD);
 
         wsEjbsMD.add(wsEjbMD);
+    }
+
+    private static void buildSecurityMetaData(final EJBMetaData wsEjbMD, final EJBEndpoint ejbEndpoint, final JBossPortComponentMetaData portComponentMD) {
+        final EJBSecurityMetaData smd = new EJBSecurityMetaData();
+        // auth method
+        final String authMethod = getAuthMethod(ejbEndpoint, portComponentMD);
+        smd.setAuthMethod(authMethod);
+        // transport guarantee
+        final String transportGuarantee = getTransportGuarantee(ejbEndpoint, portComponentMD);
+        smd.setTransportGuarantee(transportGuarantee);
+        // secure wsdl access
+        final boolean secureWsdlAccess = isSecureWsdlAccess(ejbEndpoint, portComponentMD);
+        smd.setSecureWSDLAccess(secureWsdlAccess);
+        // propagate
+        wsEjbMD.setSecurityMetaData(smd);
+    }
+
+    private static String getAuthMethod(final EJBEndpoint ejbEndpoint, final JBossPortComponentMetaData portComponentMD) {
+        if (ejbEndpoint.getAuthMethod() != null) return ejbEndpoint.getAuthMethod();
+        return portComponentMD != null ? portComponentMD.getAuthMethod() : null;
+    }
+
+    private static String getTransportGuarantee(final EJBEndpoint ejbEndpoint, final JBossPortComponentMetaData portComponentMD) {
+        if (ejbEndpoint.getTransportGuarantee() != null) return ejbEndpoint.getTransportGuarantee();
+        return portComponentMD != null ? portComponentMD.getTransportGuarantee() : null;
+    }
+
+    private static boolean isSecureWsdlAccess(final EJBEndpoint ejbEndpoint, final JBossPortComponentMetaData portComponentMD) {
+        if (ejbEndpoint.isSecureWsdlAccess()) return true;
+        return (portComponentMD != null && portComponentMD.getSecureWSDLAccess() != null) ? portComponentMD.getSecureWSDLAccess() : false;
     }
 
 }

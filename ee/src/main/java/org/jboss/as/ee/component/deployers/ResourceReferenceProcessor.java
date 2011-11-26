@@ -21,26 +21,40 @@
  */
 package org.jboss.as.ee.component.deployers;
 
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.jboss.as.ee.component.Attachments;
 import org.jboss.as.ee.component.BindingConfiguration;
 import org.jboss.as.ee.component.ComponentDescription;
 import org.jboss.as.ee.component.DeploymentDescriptorEnvironment;
 import org.jboss.as.ee.component.EEApplicationClasses;
 import org.jboss.as.ee.component.EEModuleDescription;
 import org.jboss.as.ee.component.EnvEntryInjectionSource;
+import org.jboss.as.ee.component.FixedInjectionSource;
 import org.jboss.as.ee.component.LookupInjectionSource;
+import org.jboss.as.naming.ManagedReference;
+import org.jboss.as.naming.ManagedReferenceFactory;
+import org.jboss.as.naming.ValueManagedReference;
 import org.jboss.as.server.deployment.DeploymentUnit;
 import org.jboss.as.server.deployment.DeploymentUnitProcessingException;
 import org.jboss.as.server.deployment.reflect.DeploymentReflectionIndex;
-import org.jboss.logging.Logger;
 import org.jboss.metadata.javaee.spec.EnvironmentEntriesMetaData;
 import org.jboss.metadata.javaee.spec.EnvironmentEntryMetaData;
+import org.jboss.metadata.javaee.spec.MessageDestinationReferenceMetaData;
+import org.jboss.metadata.javaee.spec.MessageDestinationReferencesMetaData;
 import org.jboss.metadata.javaee.spec.ResourceEnvironmentReferenceMetaData;
 import org.jboss.metadata.javaee.spec.ResourceEnvironmentReferencesMetaData;
 import org.jboss.metadata.javaee.spec.ResourceReferenceMetaData;
 import org.jboss.metadata.javaee.spec.ResourceReferencesMetaData;
+import org.jboss.msc.value.ImmediateValue;
 
-import java.util.ArrayList;
-import java.util.List;
+import static org.jboss.as.ee.EeLogger.ROOT_LOGGER;
+import static org.jboss.as.ee.EeMessages.MESSAGES;
 
 /**
  * Deployment processor that sets up env-entry, resource-ref and resource-env-ref bindings
@@ -49,8 +63,6 @@ import java.util.List;
  */
 public class ResourceReferenceProcessor extends AbstractDeploymentDescriptorBindingsProcessor {
 
-    private static final Logger logger = Logger.getLogger(ResourceReferenceProcessor.class);
-
 
     @Override
     protected List<BindingConfiguration> processDescriptorEntries(DeploymentUnit deploymentUnit, DeploymentDescriptorEnvironment environment, EEModuleDescription moduleDescription, ComponentDescription componentDescription, ClassLoader classLoader, DeploymentReflectionIndex deploymentReflectionIndex, final EEApplicationClasses applicationClasses) throws DeploymentUnitProcessingException {
@@ -58,6 +70,7 @@ public class ResourceReferenceProcessor extends AbstractDeploymentDescriptorBind
         bindings.addAll(getEnvironmentEntries(environment, classLoader, deploymentReflectionIndex, moduleDescription, componentDescription, applicationClasses));
         bindings.addAll(getResourceEnvRefEntries(environment, classLoader, deploymentReflectionIndex, moduleDescription, componentDescription, applicationClasses));
         bindings.addAll(getResourceRefEntries(environment, classLoader, deploymentReflectionIndex, moduleDescription, componentDescription, applicationClasses));
+        bindings.addAll(getMessageDestinationRefs(environment, classLoader, deploymentReflectionIndex, moduleDescription, componentDescription, applicationClasses, deploymentUnit));
         return bindings;
     }
 
@@ -79,7 +92,7 @@ public class ResourceReferenceProcessor extends AbstractDeploymentDescriptorBind
                 try {
                     classType = classLoader.loadClass(resourceEnvRef.getType());
                 } catch (ClassNotFoundException e) {
-                    throw new DeploymentUnitProcessingException("Could not load " + resourceEnvRef.getType() + " referenced in env-entry ", e);
+                    throw MESSAGES.cannotLoad(e, resourceEnvRef.getType());
                 }
             }
             // our injection (source) comes from the local (ENC) lookup, no matter what.
@@ -91,7 +104,7 @@ public class ResourceReferenceProcessor extends AbstractDeploymentDescriptorBind
                 bindingConfiguration = new BindingConfiguration(name, new LookupInjectionSource(resourceEnvRef.getLookupName()));
             } else {
                 if (classType == null) {
-                    throw new DeploymentUnitProcessingException("Could not determine type for resource-env-ref " + name);
+                    throw MESSAGES.cannotDetermineType(name);
                 }
                 //check if it is a well known type
                 final String lookup = ResourceInjectionAnnotationParsingProcessor.FIXED_LOCATIONS.get(classType.getName());
@@ -100,7 +113,7 @@ public class ResourceReferenceProcessor extends AbstractDeploymentDescriptorBind
                 } else {
                     //TODO: how are we going to handle these? Previously they would have been handled by jboss-*.xml
                     if (resourceEnvRef.getResourceEnvRefName().startsWith("java:")) {
-                        logger.warnf("Could not resolve resource-env-ref %s", name);
+                        ROOT_LOGGER.cannotResolve("resource-env-ref", name);
                         continue;
                     } else {
                         bindingConfiguration = new BindingConfiguration(name, new LookupInjectionSource("java:jboss/resources/" + resourceEnvRef.getResourceEnvRefName()));
@@ -118,7 +131,7 @@ public class ResourceReferenceProcessor extends AbstractDeploymentDescriptorBind
         if (resourceRefs == null) {
             return bindings;
         }
-        for (ResourceReferenceMetaData resourceRef : resourceRefs) {
+        for (final ResourceReferenceMetaData resourceRef : resourceRefs) {
             final String name;
             if (resourceRef.getName().startsWith("java:")) {
                 name = resourceRef.getName();
@@ -131,7 +144,7 @@ public class ResourceReferenceProcessor extends AbstractDeploymentDescriptorBind
                 try {
                     classType = classLoader.loadClass(resourceRef.getType());
                 } catch (ClassNotFoundException e) {
-                    throw new DeploymentUnitProcessingException("Could not load " + resourceRef.getType() + " referenced in env-entry ", e);
+                    throw MESSAGES.cannotLoad(e, resourceRef.getType());
                 }
             }
 
@@ -142,10 +155,42 @@ public class ResourceReferenceProcessor extends AbstractDeploymentDescriptorBind
             if (!isEmpty(resourceRef.getLookupName())) {
                 bindingConfiguration = new BindingConfiguration(name, new LookupInjectionSource(resourceRef.getLookupName()));
             } else if (!isEmpty(resourceRef.getResUrl())) {
-                bindingConfiguration = new BindingConfiguration(name, new EnvEntryInjectionSource(resourceRef.getResUrl()));
+                //
+                if (classType != null && classType.equals(URI.class)) {
+                    try {
+                        //we need a newURI every time
+                        bindingConfiguration = new BindingConfiguration(name, new FixedInjectionSource(new ManagedReferenceFactory() {
+                            @Override
+                            public ManagedReference getReference() {
+                                try {
+                                    return new ValueManagedReference(new ImmediateValue(new URI(resourceRef.getResUrl())));
+                                } catch (URISyntaxException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                        }, new URI(resourceRef.getResUrl())));
+                    } catch (URISyntaxException e) {
+                        throw MESSAGES.cannotParseResourceRefUri(e, resourceRef.getResUrl());
+                    }
+                } else {
+                    try {
+                        bindingConfiguration = new BindingConfiguration(name, new FixedInjectionSource(new ManagedReferenceFactory() {
+                            @Override
+                            public ManagedReference getReference() {
+                                try {
+                                    return new ValueManagedReference(new ImmediateValue(new URL(resourceRef.getResUrl())));
+                                } catch (MalformedURLException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                        }, new URL(resourceRef.getResUrl())));
+                    } catch (MalformedURLException e) {
+                        throw MESSAGES.cannotParseResourceRefUri(e, resourceRef.getResUrl());
+                    }
+                }
             } else {
                 if (classType == null) {
-                    throw new DeploymentUnitProcessingException("Could not determine type for resource-ref " + name);
+                    throw MESSAGES.cannotDetermineType(name);
                 }
                 //check if it is a well known type
                 final String lookup = ResourceInjectionAnnotationParsingProcessor.FIXED_LOCATIONS.get(classType.getName());
@@ -155,7 +200,7 @@ public class ResourceReferenceProcessor extends AbstractDeploymentDescriptorBind
                     bindingConfiguration = new BindingConfiguration(name, new LookupInjectionSource("java:jboss/resources/" + resourceRef.getResourceRefName()));
                 } else {
                     //if we cannot resolve it just log
-                    logger.warnf("Could not resolve resource-ref %s", name);
+                    ROOT_LOGGER.cannotResolve("resource-env-ref", name);
                     continue;
                 }
             }
@@ -164,13 +209,13 @@ public class ResourceReferenceProcessor extends AbstractDeploymentDescriptorBind
         return bindings;
     }
 
-    private List<BindingConfiguration> getEnvironmentEntries(DeploymentDescriptorEnvironment environment, ClassLoader classLoader, DeploymentReflectionIndex deploymentReflectionIndex, EEModuleDescription moduleDescription, ComponentDescription componentDescription, final EEApplicationClasses applicationClasses) throws DeploymentUnitProcessingException {
-        List<BindingConfiguration> bindings = new ArrayList<BindingConfiguration>();
+    private List<BindingConfiguration> getEnvironmentEntries(final DeploymentDescriptorEnvironment environment, final ClassLoader classLoader, DeploymentReflectionIndex deploymentReflectionIndex, EEModuleDescription moduleDescription, ComponentDescription componentDescription, final EEApplicationClasses applicationClasses) throws DeploymentUnitProcessingException {
+        final List<BindingConfiguration> bindings = new ArrayList<BindingConfiguration>();
         final EnvironmentEntriesMetaData envEntries = environment.getEnvironment().getEnvironmentEntries();
         if (envEntries == null) {
             return bindings;
         }
-        for (EnvironmentEntryMetaData envEntry : envEntries) {
+        for (final EnvironmentEntryMetaData envEntry : envEntries) {
             final String name;
             if (envEntry.getName().startsWith("java:")) {
                 name = envEntry.getName();
@@ -183,13 +228,13 @@ public class ResourceReferenceProcessor extends AbstractDeploymentDescriptorBind
                 try {
                     classType = this.loadClass(envEntry.getType(), classLoader);
                 } catch (ClassNotFoundException e) {
-                    throw new DeploymentUnitProcessingException("Could not load " + envEntry.getType() + " referenced in env-entry ", e);
+                    throw MESSAGES.cannotLoad(e, envEntry.getType());
                 }
             }
             final String value = envEntry.getValue();
             final String lookup = envEntry.getLookupName();
             if (!isEmpty(value) && !isEmpty(lookup)) {
-                throw new DeploymentUnitProcessingException("Cannot specify both a <env-entry-value> and a <lookup-name> in an environemnt entry.");
+                throw MESSAGES.cannotSpecifyBoth("<env-entry-value>", "<lookup-name>");
             } else if (isEmpty(lookup) && isEmpty(value)) {
                 //if no value is provided then it is not an error
                 //this reference should simply be ignored
@@ -201,7 +246,7 @@ public class ResourceReferenceProcessor extends AbstractDeploymentDescriptorBind
             LookupInjectionSource injectionSource = new LookupInjectionSource(name);
             classType = processInjectionTargets(moduleDescription, componentDescription, applicationClasses, injectionSource, classLoader, deploymentReflectionIndex, envEntry, classType);
             if (classType == null) {
-                throw new DeploymentUnitProcessingException("Could not determine type for <env-entry> " + name + " please specify the <env-entry-type>.");
+                throw MESSAGES.cannotDetermineType("<env-entry>", name, "<env-entry-type>");
             }
 
 
@@ -227,26 +272,73 @@ public class ResourceReferenceProcessor extends AbstractDeploymentDescriptorBind
                 bindingConfiguration = new BindingConfiguration(name, new EnvEntryInjectionSource(Boolean.valueOf(value)));
             } else if (type.equals(Character.class.getName()) || type.equals("char")) {
                 if (value.length() != 1) {
-                    throw new DeploymentUnitProcessingException("env-entry of type java.lang.Character is not exactly one character long " + value);
+                    throw MESSAGES.invalidCharacterLength("env-entry", value);
                 }
                 bindingConfiguration = new BindingConfiguration(name, new EnvEntryInjectionSource(value.charAt(0)));
             } else if (type.equals(Class.class.getName())) {
                 try {
                     bindingConfiguration = new BindingConfiguration(name, new EnvEntryInjectionSource(classLoader.loadClass(value)));
                 } catch (ClassNotFoundException e) {
-                    throw new DeploymentUnitProcessingException("Could not load class " + value + " specified in env-entry");
+                    throw MESSAGES.cannotLoad(value);
                 }
             } else if (classType.isEnum() || (classType.getEnclosingClass() != null && classType.getEnclosingClass().isEnum())) {
                 bindingConfiguration = new BindingConfiguration(name, new EnvEntryInjectionSource(Enum.valueOf((Class) classType, value)));
             } else {
-                throw new DeploymentUnitProcessingException("Unkown env-entry type " + type);
+                throw MESSAGES.unknownElementType("env-entry", type);
             }
             bindings.add(bindingConfiguration);
         }
         return bindings;
     }
 
-    private boolean isEmpty(String string) {
+    /**
+     * TODO: should this be part of the messaging subsystem
+     */
+    private List<BindingConfiguration> getMessageDestinationRefs(final DeploymentDescriptorEnvironment environment, final ClassLoader classLoader, final DeploymentReflectionIndex deploymentReflectionIndex, final EEModuleDescription moduleDescription, final ComponentDescription componentDescription, final EEApplicationClasses applicationClasses, final DeploymentUnit deploymentUnit) throws DeploymentUnitProcessingException {
+        final List<BindingConfiguration> bindings = new ArrayList<BindingConfiguration>();
+        final MessageDestinationReferencesMetaData messageDestinationReferences = environment.getEnvironment().getMessageDestinationReferences();
+        if (messageDestinationReferences == null) {
+            return bindings;
+        }
+        for (final MessageDestinationReferenceMetaData messageRef : messageDestinationReferences) {
+            final String name;
+            if (messageRef.getName().startsWith("java:")) {
+                name = messageRef.getName();
+            } else {
+                name = environment.getDefaultContext() + messageRef.getName();
+            }
+            Class<?> classType = null;
+            if (messageRef.getType() != null) {
+                try {
+                    classType = classLoader.loadClass(messageRef.getType());
+                } catch (ClassNotFoundException e) {
+                    throw MESSAGES.cannotLoad(e, messageRef.getType());
+                }
+            }
+            // our injection (source) comes from the local (ENC) lookup, no matter what.
+            final LookupInjectionSource injectionSource = new LookupInjectionSource(name);
+
+            classType = processInjectionTargets(moduleDescription, componentDescription, applicationClasses, injectionSource, classLoader, deploymentReflectionIndex, messageRef, classType);
+            final BindingConfiguration bindingConfiguration;
+            if (!isEmpty(messageRef.getLookupName())) {
+                bindingConfiguration = new BindingConfiguration(name, new LookupInjectionSource(messageRef.getLookupName()));
+                bindings.add(bindingConfiguration);
+            } else if (!isEmpty(messageRef.getMappedName())) {
+                bindingConfiguration = new BindingConfiguration(name, new LookupInjectionSource(messageRef.getMappedName()));
+                bindings.add(bindingConfiguration);
+            } else if (!isEmpty(messageRef.getLink())) {
+                final MessageDestinationInjectionSource messageDestinationInjectionSource = new MessageDestinationInjectionSource(messageRef.getLink(), name);
+                bindingConfiguration = new BindingConfiguration(name, messageDestinationInjectionSource);
+                deploymentUnit.addToAttachmentList(Attachments.MESSAGE_DESTINATIONS, messageDestinationInjectionSource);
+                bindings.add(bindingConfiguration);
+            } else {
+                ROOT_LOGGER.cannotResolve("message-destination-ref", name);
+            }
+        }
+        return bindings;
+    }
+
+    private boolean isEmpty(final String string) {
         return string == null || string.isEmpty();
     }
 
@@ -258,7 +350,7 @@ public class ResourceReferenceProcessor extends AbstractDeploymentDescriptorBind
 
     private Class<?> loadClass(String className, ClassLoader cl) throws ClassNotFoundException {
         if (className == null || className.trim().isEmpty()) {
-            throw new IllegalArgumentException("Classname cannot be null or empty: " + className);
+            throw MESSAGES.cannotBeNullOrEmpty("Classname", className);
         }
         if (className.equals(void.class.getName())) {
             return void.class;

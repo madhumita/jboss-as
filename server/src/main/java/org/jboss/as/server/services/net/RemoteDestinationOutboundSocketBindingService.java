@@ -22,7 +22,8 @@
 
 package org.jboss.as.server.services.net;
 
-import java.net.InetAddress;
+import org.jboss.as.network.NetworkMessages;
+import org.jboss.as.network.OutboundSocketBinding;
 
 /**
  * Service that represents a remote-destination outbound socket binding
@@ -31,30 +32,27 @@ import java.net.InetAddress;
  */
 public class RemoteDestinationOutboundSocketBindingService extends OutboundSocketBindingService {
 
-    private final InetAddress destinationHost;
+    private final String destinationHost;
     private final int destinationPort;
 
-    public RemoteDestinationOutboundSocketBindingService(final String name, final InetAddress destinationHost, final int destinationPort,
+    public RemoteDestinationOutboundSocketBindingService(final String name, final String destinationAddress, final int destinationPort,
                                                          final Integer sourcePort, final boolean fixedSourcePort) {
 
         super(name, sourcePort, fixedSourcePort);
-        if (destinationHost == null) {
-            throw new IllegalArgumentException("Destination host cannot be null for outbound socket binding " + name);
+        if (destinationAddress == null || destinationAddress.trim().isEmpty()) {
+            throw NetworkMessages.MESSAGES.nullDestinationAddress(name);
         }
         if (destinationPort < 0) {
-            throw new IllegalArgumentException("Destination port cannot be a negative value for outbound socket binding " + name);
+            throw NetworkMessages.MESSAGES.negativeDestinationPort(destinationPort, name);
         }
-        this.destinationHost = destinationHost;
+        this.destinationHost = destinationAddress;
         this.destinationPort = destinationPort;
     }
 
     @Override
-    protected InetAddress getDestinationAddress() {
-        return this.destinationHost;
-    }
-
-    @Override
-    protected int getDestinationPort() {
-        return this.destinationPort;
+    protected OutboundSocketBinding createOutboundSocketBinding() {
+        return new OutboundSocketBinding(this.outboundSocketName, this.socketBindingManagerInjectedValue.getValue(),
+                destinationHost, destinationPort, this.sourceInterfaceInjectedValue.getOptionalValue(), this.sourcePort,
+                this.fixedSourcePort);
     }
 }

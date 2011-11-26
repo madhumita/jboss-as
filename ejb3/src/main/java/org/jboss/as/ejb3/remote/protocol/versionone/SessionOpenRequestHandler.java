@@ -33,7 +33,6 @@ import org.jboss.logging.Logger;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.MessageInputStream;
 import org.xnio.IoUtils;
-import sun.management.ThreadInfoCompositeData;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -65,10 +64,7 @@ class SessionOpenRequestHandler extends EJBIdentifierBasedMessageHandler {
         final DataInputStream dataInputStream = new DataInputStream(messageInputStream);
         // read invocation id
         final short invocationId = dataInputStream.readShort();
-        String appName = dataInputStream.readUTF();
-        if (appName.isEmpty()) {
-            appName = null;
-        }
+        final String appName = dataInputStream.readUTF();
         final String moduleName = dataInputStream.readUTF();
         final String distinctName = dataInputStream.readUTF();
         final String beanName = dataInputStream.readUTF();

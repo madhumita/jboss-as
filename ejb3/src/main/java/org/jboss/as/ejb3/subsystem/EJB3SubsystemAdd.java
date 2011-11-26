@@ -38,6 +38,7 @@ import org.jboss.as.ejb3.deployment.DeploymentRepository;
 import org.jboss.as.ejb3.deployment.processors.ApplicationExceptionAnnotationProcessor;
 import org.jboss.as.ejb3.deployment.processors.BusinessViewAnnotationProcessor;
 import org.jboss.as.ejb3.deployment.processors.DeploymentRepositoryProcessor;
+import org.jboss.as.ejb3.deployment.processors.EJBClientDescriptorMetaDataProcessor;
 import org.jboss.as.ejb3.deployment.processors.EjbCleanUpProcessor;
 import org.jboss.as.ejb3.deployment.processors.EjbClientContextParsingProcessor;
 import org.jboss.as.ejb3.deployment.processors.EjbClientContextSetupProcessor;
@@ -52,7 +53,7 @@ import org.jboss.as.ejb3.deployment.processors.EjbRefProcessor;
 import org.jboss.as.ejb3.deployment.processors.EjbResourceInjectionAnnotationProcessor;
 import org.jboss.as.ejb3.deployment.processors.ImplicitLocalViewProcessor;
 import org.jboss.as.ejb3.deployment.processors.MessageDrivenComponentDescriptionFactory;
-import org.jboss.as.ejb3.deployment.processors.ORBJndiBindingProcessor;
+import org.jboss.as.ejb3.deployment.processors.IIOPJndiBindingProcessor;
 import org.jboss.as.ejb3.deployment.processors.SessionBeanComponentDescriptionFactory;
 import org.jboss.as.ejb3.deployment.processors.SessionBeanHomeProcessor;
 import org.jboss.as.ejb3.deployment.processors.TimerServiceJndiBindingProcessor;
@@ -83,8 +84,9 @@ import org.jboss.as.ejb3.deployment.processors.merging.TransactionAttributeMergi
 import org.jboss.as.ejb3.deployment.processors.merging.TransactionManagementMergingProcessor;
 import org.jboss.as.ejb3.iiop.POARegistry;
 import org.jboss.as.ejb3.deployment.processors.security.JaccEjbDeploymentProcessor;
-import org.jboss.as.ejb3.remote.EjbClientContextService;
+import org.jboss.as.ejb3.remote.DefaultEjbClientContextService;
 import org.jboss.as.ejb3.remote.LocalEjbReceiver;
+import org.jboss.as.ejb3.remote.TCCLBasedEJBClientContextSelector;
 import org.jboss.as.jacorb.service.CorbaPOAService;
 import org.jboss.as.naming.InitialContext;
 import org.jboss.as.security.service.SimpleSecurityManager;
@@ -153,14 +155,17 @@ class EJB3SubsystemAdd extends AbstractBoottimeAddStepHandler {
                 processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_EJB_SESSION_BEAN_DD, new SessionBeanXmlDescriptorProcessor(appclient));
                 processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_ANNOTATION_EJB, new EjbAnnotationProcessor());
                 processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_EJB_INJECTION_ANNOTATION, new EjbResourceInjectionAnnotationProcessor());
+                processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_EJB_CLIENT_METADATA, new EJBClientDescriptorMetaDataProcessor());
                 processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_ENTITY_BEAN_CREATE_COMPONENT_DESCRIPTIONS, new EntityBeanComponentDescriptionFactory(appclient));
+                processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_EJB_ASSEMBLY_DESC_DD, new AssemblyDescriptorProcessor());
 
                 processorTarget.addDeploymentProcessor(Phase.DEPENDENCIES, Phase.DEPENDENCIES_EJB, new EjbDependencyDeploymentUnitProcessor());
                 processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_EJB_HOME_MERGE, new HomeViewMergingProcessor(appclient));
                 processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_EJB_REF, new EjbRefProcessor());
                 processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_EJB_CLIENT_CONTEXT_SETUP, new EjbClientContextSetupProcessor());
                 processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_EJB_BUSINESS_VIEW_ANNOTATION, new BusinessViewAnnotationProcessor(appclient));
-                processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_EJB_ORB_BIND, new ORBJndiBindingProcessor());
+                processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_EJB_ORB_BIND, new IIOPJndiBindingProcessor());
+                processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_EJB_JNDI_BINDINGS, new EjbJndiBindingsDeploymentUnitProcessor(appclient));
 
                 processorTarget.addDeploymentProcessor(Phase.INSTALL, Phase.INSTALL_RESOLVE_EJB_INJECTIONS, new EjbInjectionResolutionProcessor());
                 processorTarget.addDeploymentProcessor(Phase.INSTALL, Phase.INSTALL_EJB_JACC_PROCESSING, new JaccEjbDeploymentProcessor());
@@ -175,13 +180,11 @@ class EJB3SubsystemAdd extends AbstractBoottimeAddStepHandler {
                     processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_EJB_TIMERSERVICE_BINDING, new TimerServiceJndiBindingProcessor());
                     processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_EJB_APPLICATION_EXCEPTION_ANNOTATION, new ApplicationExceptionAnnotationProcessor());
                     processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_EJB_DD_INTERCEPTORS, new InterceptorClassDeploymentDescriptorProcessor());
-                    processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_EJB_ASSEMBLY_DESC_DD, new AssemblyDescriptorProcessor());
                     processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_EJB_SECURITY_ROLE_REF_DD, new SecurityRoleRefDDProcessor());
                     processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_EJB_REMOTE_CLIENT_CONTEXT, new EjbClientContextParsingProcessor());
                     processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_MDB_CREATE_COMPONENT_DESCRIPTIONS, new MessageDrivenComponentDescriptionFactory());
 
                     processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_EJB_IMPLICIT_NO_INTERFACE_VIEW, new ImplicitLocalViewProcessor());
-                    processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_EJB_JNDI_BINDINGS, new EjbJndiBindingsDeploymentUnitProcessor());
                     processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_EJB_APPLICATION_EXCEPTIONS, new ApplicationExceptionMergingProcessor());
                     processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_EJB_DD_INTERCEPTORS, new DeploymentDescriptorInterceptorBindingsProcessor());
                     processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_EJB_DD_METHOD_RESOLUTION, new DeploymentDescriptorMethodProcessor());
@@ -251,21 +254,29 @@ class EJB3SubsystemAdd extends AbstractBoottimeAddStepHandler {
                     .install());
 
 
-        // create the POA Registry use by iiop
-        final POARegistry poaRegistry = new POARegistry();
-        newControllers.add(context.getServiceTarget().addService(POARegistry.SERVICE_NAME, poaRegistry)
-                .addDependency(CorbaPOAService.ROOT_SERVICE_NAME, POA.class, poaRegistry.getRootPOA())
-                .addListener(verificationHandler)
-                .install());
+            // create the POA Registry use by iiop
+            final POARegistry poaRegistry = new POARegistry();
+            newControllers.add(context.getServiceTarget().addService(POARegistry.SERVICE_NAME, poaRegistry)
+                    .addDependency(CorbaPOAService.ROOT_SERVICE_NAME, POA.class, poaRegistry.getRootPOA())
+                    .setInitialMode(ServiceController.Mode.PASSIVE)
+                    .addListener(verificationHandler)
+                    .install());
         }
     }
 
     private void addRemoteInvocationServices(final OperationContext context, final List<ServiceController<?>> newControllers, final boolean appclient) {
 
+        // Add the tccl based client context selector
+        final TCCLBasedEJBClientContextSelector tcclBasedClientContextSelector = new TCCLBasedEJBClientContextSelector();
+        context.getServiceTarget().addService(tcclBasedClientContextSelector.TCCL_BASED_EJB_CLIENT_CONTEXT_SELECTOR_SERVICE_NAME,
+                tcclBasedClientContextSelector).install();
+
         //add the default EjbClientContext
         //TODO: This should be managed
-        final EjbClientContextService clientContextService = new EjbClientContextService();
-        final ServiceBuilder<EJBClientContext> clientBuilder = context.getServiceTarget().addService(EjbClientContextService.DEFAULT_SERVICE_NAME, clientContextService);
+        final DefaultEjbClientContextService clientContextService = new DefaultEjbClientContextService();
+        final ServiceBuilder<EJBClientContext> clientContextServiceBuilder = context.getServiceTarget().addService(DefaultEjbClientContextService.DEFAULT_SERVICE_NAME,
+                clientContextService).addDependency(TCCLBasedEJBClientContextSelector.TCCL_BASED_EJB_CLIENT_CONTEXT_SELECTOR_SERVICE_NAME,
+                TCCLBasedEJBClientContextSelector.class, clientContextService.getTCCLBasedEJBClientContextSelectorInjector());
 
         if (!appclient) {
             // get the node name
@@ -282,10 +293,10 @@ class EJB3SubsystemAdd extends AbstractBoottimeAddStepHandler {
                     .addDependency(DeploymentRepository.SERVICE_NAME, DeploymentRepository.class, byReferenceLocalEjbReceiver.getDeploymentRepository())
                     .install());
 
-            clientContextService.addReceiver(clientBuilder, LocalEjbReceiver.BY_VALUE_SERVICE_NAME);
+            clientContextService.addReceiver(clientContextServiceBuilder, LocalEjbReceiver.BY_VALUE_SERVICE_NAME);
         }
 
-        newControllers.add(clientBuilder.install());
+        newControllers.add(clientContextServiceBuilder.install());
     }
 
 }

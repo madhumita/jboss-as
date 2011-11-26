@@ -23,19 +23,23 @@ package org.jboss.as.remoting;
 
 import java.net.InetSocketAddress;
 
+import org.jboss.as.network.ManagedBinding;
 import org.jboss.as.network.SocketBinding;
+import org.jboss.as.network.SocketBindingManager;
 import org.jboss.msc.value.InjectedValue;
+import org.xnio.OptionMap;
 
 /**
+ * {@link AbstractStreamServerService} that uses an injected socket binding.
  *
  * @author <a href="kabir.khan@jboss.com">Kabir Khan</a>
- * @version $Revision: 1.1 $
  */
 public class InjectedSocketBindingStreamServerService extends AbstractStreamServerService {
 
     private final InjectedValue<SocketBinding> socketBindingValue = new InjectedValue<SocketBinding>();
 
-    public InjectedSocketBindingStreamServerService() {
+    public InjectedSocketBindingStreamServerService(final OptionMap connectorPropertiesOptionMap) {
+        super(connectorPropertiesOptionMap);
     }
 
     public InjectedValue<SocketBinding> getSocketBindingInjector(){
@@ -45,6 +49,18 @@ public class InjectedSocketBindingStreamServerService extends AbstractStreamServ
     @Override
     InetSocketAddress getSocketAddress() {
         return socketBindingValue.getValue().getSocketAddress();
+    }
+
+    @Override
+    ManagedBinding registerSocketBinding(SocketBindingManager socketBindingManager) {
+        ManagedBinding binding = ManagedBinding.Factory.createSimpleManagedBinding(socketBindingValue.getValue());
+        socketBindingManager.getNamedRegistry().registerBinding(binding);
+        return binding;
+    }
+
+    @Override
+    void unregisterSocketBinding(ManagedBinding managedBinding, SocketBindingManager socketBindingManager) {
+        socketBindingManager.getNamedRegistry().unregisterBinding(managedBinding);
     }
 
 }

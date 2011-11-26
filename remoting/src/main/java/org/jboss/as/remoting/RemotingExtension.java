@@ -28,6 +28,7 @@ import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.DES
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OP;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OP_ADDR;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SUBSYSTEM;
+import static org.jboss.as.controller.parsing.ParseUtils.duplicateAttribute;
 import static org.jboss.as.controller.parsing.ParseUtils.missingRequired;
 import static org.jboss.as.controller.parsing.ParseUtils.readArrayAttributeElement;
 import static org.jboss.as.controller.parsing.ParseUtils.readBooleanAttributeElement;
@@ -111,7 +112,7 @@ public class RemotingExtension implements Extension {
 
         // Register the remoting subsystem
         final SubsystemRegistration registration = context.registerSubsystem(SUBSYSTEM_NAME);
-        registration.registerXMLElementWriter(NewRemotingSubsystemParser.INSTANCE);
+        registration.registerXMLElementWriter(RemotingSubsystem11Parser.INSTANCE);
 
         final ManagementResourceRegistration subsystem = registration.registerSubsystemModel(RemotingSubsystemRootResource.INSTANCE);
         subsystem.registerOperationHandler(DESCRIBE, GenericSubsystemDescribeHandler.INSTANCE, GenericSubsystemDescribeHandler.INSTANCE, false, OperationEntry.EntryType.PRIVATE);
@@ -121,6 +122,13 @@ public class RemotingExtension implements Extension {
         final ManagementResourceRegistration sasl = connector.registerSubModel(SaslResource.INSTANCE);
         sasl.registerSubModel(SaslPolicyResource.INSTANCE);
         sasl.registerSubModel(PropertyResource.INSTANCE);
+
+        // remote outbound connection
+        subsystem.registerSubModel(RemoteOutboundConnnectionResourceDefinition.INSTANCE);
+        // local outbound connection
+        subsystem.registerSubModel(LocalOutboundConnectionResourceDefinition.INSTANCE);
+        // (generic) outbound connection
+        subsystem.registerSubModel(GenericOutboundConnectionResourceDefinition.INSTANCE);
     }
 
     /**
@@ -128,15 +136,16 @@ public class RemotingExtension implements Extension {
      */
     @Override
     public void initializeParsers(ExtensionParsingContext context) {
-        context.setSubsystemXmlMapping(Namespace.CURRENT.getUriString(), NewRemotingSubsystemParser.INSTANCE);
+        context.setSubsystemXmlMapping(Namespace.REMOTING_1_0.getUriString(), RemotingSubsystem10Parser.INSTANCE);
+        context.setSubsystemXmlMapping(Namespace.REMOTING_1_1.getUriString(), RemotingSubsystem11Parser.INSTANCE);
     }
 
     /**
      * The root element parser for the Remoting subsystem.
      */
-    static final class NewRemotingSubsystemParser implements XMLStreamConstants, XMLElementReader<List<ModelNode>>, XMLElementWriter<SubsystemMarshallingContext> {
+    static final class RemotingSubsystem10Parser implements XMLStreamConstants, XMLElementReader<List<ModelNode>>, XMLElementWriter<SubsystemMarshallingContext> {
 
-        private static final NewRemotingSubsystemParser INSTANCE = new NewRemotingSubsystemParser();
+        private static final RemotingSubsystem10Parser INSTANCE = new RemotingSubsystem10Parser();
 
         @Override
         public void readElement(XMLExtendedStreamReader reader, List<ModelNode> list) throws XMLStreamException {
@@ -144,6 +153,8 @@ public class RemotingExtension implements Extension {
             final ModelNode address = new ModelNode();
             address.add(SUBSYSTEM, SUBSYSTEM_NAME);
             address.protect();
+            final ModelNode subsystem = Util.getEmptyOperation(ADD, address);
+            list.add(subsystem);
 
             final int count = reader.getAttributeCount();
             for (int i = 0; i < count; i++) {
@@ -151,18 +162,47 @@ public class RemotingExtension implements Extension {
                 final String value = reader.getAttributeValue(i);
                 final Attribute attribute = Attribute.forName(reader.getAttributeLocalName(i));
                 switch (attribute) {
-                    case THREAD_POOL: {
-                        // TODO this unused attribute is allowed in the file solely so the TCK
-                        // config would not fail right before CR1
-                        break;
+                case WORKER_READ_THREADS:
+                    if (subsystem.hasDefined(CommonAttributes.WORKER_READ_THREADS)) {
+                        throw duplicateAttribute(reader, CommonAttributes.WORKER_READ_THREADS);
                     }
+                    RemotingSubsystemRootResource.WORKER_READ_THREADS.parseAndSetParameter(value, subsystem, reader.getLocation());
+                    break;
+                case WORKER_TASK_CORE_THREADS:
+                    if (subsystem.hasDefined(CommonAttributes.WORKER_TASK_CORE_THREADS)) {
+                        throw duplicateAttribute(reader, CommonAttributes.WORKER_TASK_CORE_THREADS);
+                    }
+                    RemotingSubsystemRootResource.WORKER_TASK_CORE_THREADS.parseAndSetParameter(value, subsystem, reader.getLocation());
+                    break;
+                case WORKER_TASK_KEEPALIVE:
+                    if (subsystem.hasDefined(CommonAttributes.WORKER_TASK_KEEPALIVE)) {
+                        throw duplicateAttribute(reader, CommonAttributes.WORKER_TASK_KEEPALIVE);
+                    }
+                    RemotingSubsystemRootResource.WORKER_TASK_KEEPALIVE.parseAndSetParameter(value, subsystem, reader.getLocation());
+                    break;
+                case WORKER_TASK_LIMIT:
+                    if (subsystem.hasDefined(CommonAttributes.WORKER_TASK_LIMIT)) {
+                        throw duplicateAttribute(reader, CommonAttributes.WORKER_TASK_LIMIT);
+                    }
+                    RemotingSubsystemRootResource.WORKER_TASK_LIMIT.parseAndSetParameter(value, subsystem, reader.getLocation());
+                    break;
+                case WORKER_TASK_MAX_THREADS:
+                    if (subsystem.hasDefined(CommonAttributes.WORKER_TASK_MAX_THREADS)) {
+                        throw duplicateAttribute(reader, CommonAttributes.WORKER_TASK_MAX_THREADS);
+                    }
+                    RemotingSubsystemRootResource.WORKER_TASK_MAX_THREADS.parseAndSetParameter(value, subsystem, reader.getLocation());
+                    break;
+                case WORKER_WRITE_THREADS:
+                    if (subsystem.hasDefined(CommonAttributes.WORKER_WRITE_THREADS)) {
+                        throw duplicateAttribute(reader, CommonAttributes.WORKER_WRITE_THREADS);
+                    }
+                    RemotingSubsystemRootResource.WORKER_WRITE_THREADS.parseAndSetParameter(value, subsystem, reader.getLocation());
+                    break;
                     default:
                         throw unexpectedAttribute(reader, i);
                 }
             }
 
-            final ModelNode subsystem = Util.getEmptyOperation(ADD, address);
-            list.add(subsystem);
 
             // Handle elements
             while (reader.hasNext() && reader.nextTag() != END_ELEMENT) {
@@ -403,7 +443,7 @@ public class RemotingExtension implements Extension {
 
         private void parseProperties(XMLExtendedStreamReader reader, final ModelNode address, final List<ModelNode> list) throws XMLStreamException {
             while (reader.nextTag() != END_ELEMENT) {
-                reader.require(START_ELEMENT, Namespace.CURRENT.getUriString(), Element.PROPERTY.getLocalName());
+                reader.require(START_ELEMENT, Namespace.REMOTING_1_0.getUriString(), Element.PROPERTY.getLocalName());
                 final Property property = readProperty(reader);
                 ModelNode propertyOp = new ModelNode();
                 propertyOp.get(OP).set(ADD);
@@ -421,6 +461,13 @@ public class RemotingExtension implements Extension {
             context.startSubsystemElement(Namespace.CURRENT.getUriString(), false);
             final ModelNode node = context.getModelNode();
 
+            RemotingSubsystemRootResource.WORKER_READ_THREADS.marshallAsAttribute(node, false, writer);
+            RemotingSubsystemRootResource.WORKER_TASK_CORE_THREADS.marshallAsAttribute(node, false, writer);
+            RemotingSubsystemRootResource.WORKER_TASK_KEEPALIVE.marshallAsAttribute(node, false, writer);
+            RemotingSubsystemRootResource.WORKER_TASK_LIMIT.marshallAsAttribute(node, false, writer);
+            RemotingSubsystemRootResource.WORKER_TASK_MAX_THREADS.marshallAsAttribute(node, false, writer);
+            RemotingSubsystemRootResource.WORKER_WRITE_THREADS.marshallAsAttribute(node, false, writer);
+
             if (node.hasDefined(CONNECTOR)) {
                 final ModelNode connector = node.get(CONNECTOR);
                 for (String name : connector.keys()) {
@@ -436,8 +483,8 @@ public class RemotingExtension implements Extension {
             writer.writeStartElement(Element.CONNECTOR.getLocalName());
             writer.writeAttribute(Attribute.NAME.getLocalName(), name);
 
-            ConnectorResource.SOCKET_BINDING_ATTRIBUTE.marshallAsAttribute(node, writer);
-            ConnectorResource.AUTHENTICATION_PROVIER_ATTRIBUTE.marshallAsElement(node, writer);
+            ConnectorResource.SOCKET_BINDING.marshallAsAttribute(node, writer);
+            ConnectorResource.AUTHENTICATION_PROVIDER.marshallAsElement(node, writer);
 
             if (node.hasDefined(PROPERTY)) {
                 writeProperties(writer, node.get(PROPERTY));
@@ -453,7 +500,7 @@ public class RemotingExtension implements Extension {
             for (Property prop : node.asPropertyList()) {
                 writer.writeStartElement(Element.PROPERTY.getLocalName());
                 writer.writeAttribute(Attribute.NAME.getLocalName(), prop.getName());
-                PropertyResource.VALUE_ATTRIBUTE.marshallAsAttribute(prop.getValue(), writer);
+                PropertyResource.VALUE.marshallAsAttribute(prop.getValue(), writer);
                 writer.writeEndElement();
             }
             writer.writeEndElement();
@@ -480,12 +527,12 @@ public class RemotingExtension implements Extension {
         private void writePolicy(final XMLExtendedStreamWriter writer, final ModelNode node) throws XMLStreamException {
             writer.writeStartElement(Element.POLICY.getLocalName());
             final ModelNode policy = node.get(POLICY);
-            SaslPolicyResource.FORWARD_SECRECY_ATTRIBUTE.marshallAsElement(policy, writer);
-            SaslPolicyResource.NO_ACTIVE_ATTRIBUTE.marshallAsElement(policy, writer);
-            SaslPolicyResource.NO_ANONYMOUS_ATTRIBUTE.marshallAsElement(policy, writer);
-            SaslPolicyResource.NO_DICTIONARY_ATTRIBUTE.marshallAsElement(policy, writer);
-            SaslPolicyResource.NO_PLAIN_TEXT_ATTRIBUTE.marshallAsElement(policy, writer);
-            SaslPolicyResource.PASS_CREDENTIALS_ATTRIBUTE.marshallAsElement(policy, writer);
+            SaslPolicyResource.FORWARD_SECRECY.marshallAsElement(policy, writer);
+            SaslPolicyResource.NO_ACTIVE.marshallAsElement(policy, writer);
+            SaslPolicyResource.NO_ANONYMOUS.marshallAsElement(policy, writer);
+            SaslPolicyResource.NO_DICTIONARY.marshallAsElement(policy, writer);
+            SaslPolicyResource.NO_PLAIN_TEXT.marshallAsElement(policy, writer);
+            SaslPolicyResource.PASS_CREDENTIALS.marshallAsElement(policy, writer);
             writer.writeEndElement();
         }
     }

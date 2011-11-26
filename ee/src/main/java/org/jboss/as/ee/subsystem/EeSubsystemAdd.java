@@ -33,13 +33,16 @@ import org.jboss.as.ee.component.deployers.ApplicationClassesAggregationProcesso
 import org.jboss.as.ee.component.deployers.AroundInvokeAnnotationParsingProcessor;
 import org.jboss.as.ee.component.deployers.ComponentInstallProcessor;
 import org.jboss.as.ee.component.deployers.DefaultEarSubDeploymentsIsolationProcessor;
+import org.jboss.as.ee.component.deployers.EEAnnotationProcessor;
 import org.jboss.as.ee.component.deployers.EECleanUpProcessor;
 import org.jboss.as.ee.component.deployers.EEDistinctNameProcessor;
 import org.jboss.as.ee.component.deployers.EEModuleConfigurationProcessor;
 import org.jboss.as.ee.component.deployers.EEModuleInitialProcessor;
 import org.jboss.as.ee.component.deployers.EEModuleNameProcessor;
-import org.jboss.as.ee.component.deployers.InterceptorsAnnotationParsingProcessor;
+import org.jboss.as.ee.component.deployers.EarApplicationNameProcessor;
+import org.jboss.as.ee.component.deployers.InterceptorAnnotationProcessor;
 import org.jboss.as.ee.component.deployers.LifecycleAnnotationParsingProcessor;
+import org.jboss.as.ee.component.deployers.MessageDestinationResolutionProcessor;
 import org.jboss.as.ee.component.deployers.ModuleJndiBindingProcessor;
 import org.jboss.as.ee.component.deployers.ResourceInjectionAnnotationParsingProcessor;
 import org.jboss.as.ee.component.deployers.ResourceReferenceProcessor;
@@ -52,6 +55,7 @@ import org.jboss.as.ee.naming.ApplicationContextProcessor;
 import org.jboss.as.ee.naming.ModuleContextProcessor;
 import org.jboss.as.ee.structure.ApplicationClientDeploymentProcessor;
 import org.jboss.as.ee.structure.ComponentAggregationProcessor;
+import org.jboss.as.ee.structure.EJBClientDescriptorParsingProcessor;
 import org.jboss.as.ee.structure.EarDependencyProcessor;
 import org.jboss.as.ee.structure.EarInitializationProcessor;
 import org.jboss.as.ee.structure.EarLibManifestClassPathProcessor;
@@ -66,8 +70,9 @@ import org.jboss.as.server.AbstractDeploymentChainStep;
 import org.jboss.as.server.DeploymentProcessorTarget;
 import org.jboss.as.server.deployment.Phase;
 import org.jboss.dmr.ModelNode;
-import org.jboss.logging.Logger;
 import org.jboss.msc.service.ServiceController;
+
+import static org.jboss.as.ee.EeLogger.ROOT_LOGGER;
 
 /**
  * Handler for adding the ee subsystem.
@@ -76,8 +81,6 @@ import org.jboss.msc.service.ServiceController;
  * @author Emanuel Muckenhuber
  */
 public class EeSubsystemAdd extends AbstractBoottimeAddStepHandler {
-
-    private static final Logger logger = Logger.getLogger("org.jboss.as.ee");
 
     private final DefaultEarSubDeploymentsIsolationProcessor isolationProcessor;
     private final GlobalModuleDependencyProcessor moduleDependencyProcessor;
@@ -114,10 +117,12 @@ public class EeSubsystemAdd extends AbstractBoottimeAddStepHandler {
                 moduleDependencyProcessor.setGlobalModules(globalModules);
                 isolationProcessor.setEarSubDeploymentsIsolated(earSubDeploymentsIsolated);
 
-                logger.info("Activating EE subsystem");
+                ROOT_LOGGER.debug("Activating EE subsystem");
                 processorTarget.addDeploymentProcessor(Phase.STRUCTURE, Phase.STRUCTURE_EAR_DEPLOYMENT_INIT, new EarInitializationProcessor());
                 processorTarget.addDeploymentProcessor(Phase.STRUCTURE, Phase.STRUCTURE_EAR_APP_XML_PARSE, new EarMetaDataParsingProcessor());
                 processorTarget.addDeploymentProcessor(Phase.STRUCTURE, Phase.STRUCTURE_EAR_JBOSS_APP_XML_PARSE, new JBossAppMetaDataParsingProcessor());
+                processorTarget.addDeploymentProcessor(Phase.STRUCTURE, Phase.STRUCTURE_JBOSS_EJB_CLIENT_XML_PARSE, new EJBClientDescriptorParsingProcessor());
+                processorTarget.addDeploymentProcessor(Phase.STRUCTURE, Phase.STRUCTURE_EJB_EAR_APPLICATION_NAME, new EarApplicationNameProcessor());
                 processorTarget.addDeploymentProcessor(Phase.STRUCTURE, Phase.STRUCTURE_EAR, new EarStructureProcessor());
                 processorTarget.addDeploymentProcessor(Phase.STRUCTURE, Phase.STRUCTURE_EJB_JAR_IN_EAR, new EjbJarDeploymentProcessor());
                 processorTarget.addDeploymentProcessor(Phase.STRUCTURE, Phase.STRUCTURE_APPLICATION_CLIENT_IN_EAR, new ApplicationClientDeploymentProcessor());
@@ -126,8 +131,8 @@ public class EeSubsystemAdd extends AbstractBoottimeAddStepHandler {
 
                 processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_MANAGED_BEAN_ANNOTATION, new ManagedBeanAnnotationProcessor());
                 processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_EE_MODULE_NAME, new EEModuleNameProcessor());
+                processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_EE_ANNOTATIONS, new EEAnnotationProcessor());
                 processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_EAR_LIB_CLASS_PATH, new EarLibManifestClassPathProcessor());
-                processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_INTERCEPTORS_ANNOTATION, new InterceptorsAnnotationParsingProcessor());
                 processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_LIEFCYCLE_ANNOTATION, new LifecycleAnnotationParsingProcessor());
                 processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_AROUNDINVOKE_ANNOTATION, new AroundInvokeAnnotationParsingProcessor());
                 processorTarget.addDeploymentProcessor(Phase.PARSE, Phase.PARSE_EAR_SUBDEPLOYMENTS_ISOLATION_DEFAULT, isolationProcessor);
@@ -144,10 +149,12 @@ public class EeSubsystemAdd extends AbstractBoottimeAddStepHandler {
                 processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_INJECTION_ANNOTATION, new ResourceInjectionAnnotationParsingProcessor());
                 processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_ENV_ENTRY, new ResourceReferenceProcessor());
                 processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_DATASOURCE_REF, new DataSourceDefinitionDeploymentDescriptorParser());
+                processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_INTERCEPTOR_ANNOTATIONS, new InterceptorAnnotationProcessor());
+                processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_NAMING_CONTEXT, new ModuleContextProcessor());
+                processorTarget.addDeploymentProcessor(Phase.POST_MODULE, Phase.POST_MODULE_APP_NAMING_CONTEXT, new ApplicationContextProcessor());
 
+                processorTarget.addDeploymentProcessor(Phase.INSTALL, Phase.INSTALL_RESOLVE_MESSAGE_DESTINATIONS, new MessageDestinationResolutionProcessor());
                 processorTarget.addDeploymentProcessor(Phase.INSTALL, Phase.INSTALL_COMPONENT_AGGREGATION, new ComponentAggregationProcessor());
-                processorTarget.addDeploymentProcessor(Phase.INSTALL, Phase.INSTALL_MODULE_CONTEXT, new ModuleContextProcessor());
-                processorTarget.addDeploymentProcessor(Phase.INSTALL, Phase.INSTALL_APP_CONTEXT, new ApplicationContextProcessor());
                 processorTarget.addDeploymentProcessor(Phase.INSTALL, Phase.INSTALL_MODULE_JNDI_BINDINGS, new ModuleJndiBindingProcessor());
                 processorTarget.addDeploymentProcessor(Phase.INSTALL, Phase.INSTALL_EE_MODULE_CONFIG, new EEModuleConfigurationProcessor());
                 processorTarget.addDeploymentProcessor(Phase.INSTALL, Phase.INSTALL_EE_COMPONENT, new ComponentInstallProcessor());

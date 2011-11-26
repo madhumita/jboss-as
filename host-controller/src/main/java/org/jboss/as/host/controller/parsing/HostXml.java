@@ -30,11 +30,14 @@ import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.COR
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.DOMAIN_CONTROLLER;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.GROUP;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.HOST;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.HTTP_INTERFACE;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.INTERFACE;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.JVM;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.LOCAL;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.MANAGEMENT;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.MANAGEMENT_INTERFACE;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.NAME;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.NATIVE_INTERFACE;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OP;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OP_ADDR;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.PATH;
@@ -59,13 +62,14 @@ import static org.jboss.as.controller.parsing.ParseUtils.requireNoContent;
 import static org.jboss.as.controller.parsing.ParseUtils.unexpectedAttribute;
 import static org.jboss.as.controller.parsing.ParseUtils.unexpectedElement;
 
-import javax.xml.stream.XMLStreamException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+
+import javax.xml.stream.XMLStreamException;
 
 import org.jboss.as.controller.operations.common.Util;
 import org.jboss.as.controller.parsing.Attribute;
@@ -74,6 +78,8 @@ import org.jboss.as.controller.parsing.Element;
 import org.jboss.as.controller.parsing.Namespace;
 import org.jboss.as.controller.parsing.ParseUtils;
 import org.jboss.as.controller.persistence.ModelMarshallingContext;
+import org.jboss.as.host.controller.resources.HttpManagementResourceDefinition;
+import org.jboss.as.host.controller.resources.NativeManagementResourceDefinition;
 import org.jboss.dmr.ModelNode;
 import org.jboss.dmr.Property;
 import org.jboss.modules.ModuleLoader;
@@ -132,47 +138,36 @@ public class HostXml extends CommonXml {
         writeNamespaces(writer, modelNode);
         writeSchemaLocation(writer, modelNode);
 
+        writeNewLine(writer);
+
         if (modelNode.hasDefined(SYSTEM_PROPERTY)) {
             writeProperties(writer, modelNode.get(SYSTEM_PROPERTY), Element.SYSTEM_PROPERTIES, false);
+            writeNewLine(writer);
         }
 
         if (modelNode.hasDefined(PATH)) {
             writePaths(writer, modelNode.get(PATH));
+            writeNewLine(writer);
         }
 
         if (modelNode.hasDefined(CORE_SERVICE) && modelNode.get(CORE_SERVICE).hasDefined(VAULT)) {
             writeVault(writer, modelNode.get(CORE_SERVICE, VAULT));
-        }
-
-        if (modelNode.hasDefined(VAULT)) {
-            ModelNode vault = modelNode.get(VAULT);
-            writer.writeStartElement(Element.VAULT.getLocalName());
-            String code = vault.get(Attribute.CODE.getLocalName()).asString();
-            if (code != null && !code.isEmpty() && !code.equals("undefined")) {
-                writer.writeAttribute(Attribute.CODE.getLocalName(), code);
-            }
-
-            //TODO: not sure why the vault option is coming under ADD
-            ModelNode addNode = vault.get(ADD);
-            ModelNode properties = addNode.get(VAULT_OPTION);
-            for (Property prop : properties.asPropertyList()) {
-                writer.writeEmptyElement(Element.VAULT_OPTION.getLocalName());
-                writer.writeAttribute(Attribute.NAME.getLocalName(), prop.getName());
-                writer.writeAttribute(Attribute.VALUE.getLocalName(), prop.getValue().asString());
-            }
-            writer.writeEndElement();
+            writeNewLine(writer);
         }
 
         if (modelNode.hasDefined(CORE_SERVICE) && modelNode.get(CORE_SERVICE).hasDefined(MANAGEMENT)) {
             writeManagement(writer, modelNode.get(CORE_SERVICE, MANAGEMENT), true);
+            writeNewLine(writer);
         }
 
         if (modelNode.hasDefined(DOMAIN_CONTROLLER)) {
             writeDomainController(writer, modelNode.get(DOMAIN_CONTROLLER));
+            writeNewLine(writer);
         }
 
         if (modelNode.hasDefined(INTERFACE)) {
             writeInterfaces(writer, modelNode.get(INTERFACE));
+            writeNewLine(writer);
         }
         if (modelNode.hasDefined(JVM)) {
             writer.writeStartElement(Element.JVMS.getLocalName());
@@ -180,13 +175,16 @@ public class HostXml extends CommonXml {
                 writeJVMElement(writer, jvm.getName(), jvm.getValue());
             }
             writer.writeEndElement();
+            writeNewLine(writer);
         }
 
         if (modelNode.hasDefined(SERVER_CONFIG)) {
             writeServers(writer, modelNode.get(SERVER_CONFIG));
+            writeNewLine(writer);
         }
 
         writer.writeEndElement();
+        writeNewLine(writer);
         writer.writeEndDocument();
     }
 
@@ -406,6 +404,164 @@ public class HostXml extends CommonXml {
         // }
         // }
 
+    protected void parseManagementInterfaces(final XMLExtendedStreamReader reader, final ModelNode address, final Namespace expectedNs,
+            final List<ModelNode> list) throws XMLStreamException {
+
+        requireNoAttributes(reader);
+
+        while (reader.hasNext() && reader.nextTag() != END_ELEMENT) {
+            requireNamespace(reader, expectedNs);
+            final Element element = Element.forName(reader.getLocalName());
+            switch (element) {
+                case NATIVE_INTERFACE: {
+                    switch (expectedNs) {
+                        case DOMAIN_1_0:
+                            parseNativeManagementInterface1_0(reader, address, list);
+                            break;
+                        default:
+                            parseManagementInterface1_1(reader, address, false, expectedNs, list);
+                    }
+                    break;
+                }
+                case HTTP_INTERFACE: {
+                    switch (expectedNs) {
+                        case DOMAIN_1_0:
+                            parseHttpManagementInterface1_0(reader, address, list);
+                            break;
+                        default:
+                            parseManagementInterface1_1(reader, address, true, expectedNs, list);
+                    }
+                    break;
+                }
+                default: {
+                    throw unexpectedElement(reader);
+                }
+            }
+        }
+    }
+
+    private void parseManagementInterface1_1(XMLExtendedStreamReader reader, ModelNode address, boolean http, Namespace expectedNs, List<ModelNode> list)  throws XMLStreamException {
+
+        final ModelNode operationAddress = address.clone();
+        operationAddress.add(MANAGEMENT_INTERFACE, http ? HTTP_INTERFACE : NATIVE_INTERFACE);
+        final ModelNode addOp = Util.getEmptyOperation(ADD, operationAddress);
+
+        // Handle attributes
+
+        final int count = reader.getAttributeCount();
+        for (int i = 0; i < count; i++) {
+            final String value = reader.getAttributeValue(i);
+            if (!isNoNamespaceAttribute(reader, i)) {
+                throw unexpectedAttribute(reader, i);
+            } else {
+                final Attribute attribute = Attribute.forName(reader.getAttributeLocalName(i));
+                switch (attribute) {
+                    case SECURITY_REALM: {
+                        if (http) {
+                            HttpManagementResourceDefinition.SECURITY_REALM.parseAndSetParameter(value, addOp, reader.getLocation());
+                        } else {
+                            NativeManagementResourceDefinition.SECURITY_REALM.parseAndSetParameter(value, addOp, reader.getLocation());
+                        }
+                        break;
+                    }
+                    default:
+                        throw unexpectedAttribute(reader, i);
+                }
+            }
+        }
+
+        // Handle elements
+        while (reader.hasNext() && reader.nextTag() != END_ELEMENT) {
+            requireNamespace(reader, expectedNs);
+            final Element element = Element.forName(reader.getLocalName());
+            switch (element) {
+                case SOCKET:
+                    if (http) {
+                        parseHttpManagementSocket(reader, addOp);
+                    } else {
+                        parseNativeManagementSocket(reader, addOp);
+                    }
+                    break;
+                default:
+                    throw unexpectedElement(reader);
+            }
+        }
+
+        list.add(addOp);
+    }
+
+    private void parseNativeManagementSocket(XMLExtendedStreamReader reader, ModelNode addOp) throws XMLStreamException {
+        // Handle attributes
+        boolean hasInterface = false;
+
+        final int count = reader.getAttributeCount();
+        for (int i = 0; i < count; i++) {
+            final String value = reader.getAttributeValue(i);
+            if (!isNoNamespaceAttribute(reader, i)) {
+                throw unexpectedAttribute(reader, i);
+            } else {
+                final Attribute attribute = Attribute.forName(reader.getAttributeLocalName(i));
+                switch (attribute) {
+                    case INTERFACE: {
+                        NativeManagementResourceDefinition.INTERFACE.parseAndSetParameter(value, addOp, reader.getLocation());
+                        hasInterface = true;
+                        break;
+                    }
+                    case PORT: {
+                        NativeManagementResourceDefinition.NATIVE_PORT.parseAndSetParameter(value, addOp, reader.getLocation());
+                        break;
+                    }
+                    default:
+                        throw unexpectedAttribute(reader, i);
+                }
+            }
+        }
+
+        requireNoContent(reader);
+
+        if (!hasInterface) {
+            throw missingRequired(reader, Collections.singleton(Attribute.INTERFACE.getLocalName()));
+        }
+    }
+
+    private void parseHttpManagementSocket(XMLExtendedStreamReader reader, ModelNode addOp) throws XMLStreamException {
+        // Handle attributes
+        boolean hasInterface = false;
+
+        final int count = reader.getAttributeCount();
+        for (int i = 0; i < count; i++) {
+            final String value = reader.getAttributeValue(i);
+            if (!isNoNamespaceAttribute(reader, i)) {
+                throw unexpectedAttribute(reader, i);
+            } else {
+                final Attribute attribute = Attribute.forName(reader.getAttributeLocalName(i));
+                switch (attribute) {
+                    case INTERFACE: {
+                        HttpManagementResourceDefinition.INTERFACE.parseAndSetParameter(value, addOp, reader.getLocation());
+                        hasInterface = true;
+                        break;
+                    }
+                    case PORT: {
+                        HttpManagementResourceDefinition.HTTP_PORT.parseAndSetParameter(value, addOp, reader.getLocation());
+                        break;
+                    }
+                    case SECURE_PORT: {
+                        HttpManagementResourceDefinition.HTTPS_PORT.parseAndSetParameter(value, addOp, reader.getLocation());
+                        break;
+                    }
+                    default:
+                        throw unexpectedAttribute(reader, i);
+                }
+            }
+        }
+
+        requireNoContent(reader);
+
+        if (!hasInterface) {
+            throw missingRequired(reader, Collections.singleton(Attribute.INTERFACE.getLocalName()));
+        }
+    }
+
     /**
      * Add the operation to add the local host definition.
      */
@@ -568,7 +724,127 @@ public class HostXml extends CommonXml {
         }
     }
 
-    private void parseServer(final XMLExtendedStreamReader reader, final ModelNode parentAddress, final Namespace expectedNs, final List<ModelNode> list,
+    private void parseServer(final XMLExtendedStreamReader reader, final ModelNode parentAddress,
+                             final Namespace expectedNs, final List<ModelNode> list,
+            final Set<String> serverNames) throws XMLStreamException {
+
+        // Handle attributes
+        final ModelNode addUpdate = parseServerAttributes(reader, parentAddress, serverNames);
+        final ModelNode address = addUpdate.require(OP_ADDR);
+        list.add(addUpdate);
+
+        // Handle elements
+        switch (expectedNs) {
+            case DOMAIN_1_0:
+                parseServerContent1_0(reader, address, expectedNs, list);
+                break;
+            default:
+                parseServerContent1_1(reader, address, expectedNs, list);
+        }
+
+    }
+
+    private void parseServerContent1_0(final XMLExtendedStreamReader reader, final ModelNode serverAddress,
+                                       final Namespace expectedNs, final List<ModelNode> list) throws XMLStreamException {
+        boolean sawJvm = false;
+        boolean sawSystemProperties = false;
+        boolean sawSocketBinding = false;
+        final Set<String> interfaceNames = new HashSet<String>();
+        while (reader.hasNext() && reader.nextTag() != END_ELEMENT) {
+            requireNamespace(reader, expectedNs);
+            final Element element = Element.forName(reader.getLocalName());
+            switch (element) {
+                case INTERFACE_SPECS: {
+                    parseInterfaces(reader, interfaceNames, serverAddress, expectedNs, list, true);
+                    break;
+                }
+                case JVM: {
+                    if (sawJvm) {
+                        throw MESSAGES.alreadyDefined(element.getLocalName(), reader.getLocation());
+                    }
+
+                    parseJvm(reader, serverAddress, expectedNs, list, new HashSet<String>(), true);
+                    sawJvm = true;
+                    break;
+                }
+                case PATHS: {
+                    parsePaths(reader, serverAddress, expectedNs, list, true);
+                    break;
+                }
+                case SOCKET_BINDING_GROUP: {
+                    if (sawSocketBinding) {
+                        throw MESSAGES.alreadyDefined(element.getLocalName(), reader.getLocation());
+                    }
+                    parseSocketBindingGroupRef(reader, serverAddress, list);
+                    sawSocketBinding = true;
+                    break;
+                }
+                case SYSTEM_PROPERTIES: {
+                    if (sawSystemProperties) {
+                        throw MESSAGES.alreadyDefined(element.getLocalName(), reader.getLocation());
+                    }
+                    parseSystemProperties(reader, serverAddress, expectedNs, list, false);
+                    sawSystemProperties = true;
+                    break;
+                }
+                default:
+                    throw unexpectedElement(reader);
+            }
+        }
+
+    }
+
+    private void parseServerContent1_1(final XMLExtendedStreamReader reader, final ModelNode serverAddress,
+                                       final Namespace expectedNs, final List<ModelNode> list) throws XMLStreamException {
+        boolean sawJvm = false;
+        boolean sawSystemProperties = false;
+        boolean sawSocketBinding = false;
+        final Set<String> interfaceNames = new HashSet<String>();
+        while (reader.hasNext() && reader.nextTag() != END_ELEMENT) {
+            requireNamespace(reader, expectedNs);
+            final Element element = Element.forName(reader.getLocalName());
+            switch (element) {
+                case INTERFACES: { // THIS IS DIFFERENT FROM 1.0
+                    parseInterfaces(reader, interfaceNames, serverAddress, expectedNs, list, true);
+                    break;
+                }
+                case JVM: {
+                    if (sawJvm) {
+                        throw MESSAGES.alreadyDefined(element.getLocalName(), reader.getLocation());
+                    }
+
+                    parseJvm(reader, serverAddress, expectedNs, list, new HashSet<String>(), true);
+                    sawJvm = true;
+                    break;
+                }
+                case PATHS: {
+                    parsePaths(reader, serverAddress, expectedNs, list, true);
+                    break;
+                }
+                case SOCKET_BINDING_GROUP: {
+                    if (sawSocketBinding) {
+                        throw MESSAGES.alreadyDefined(element.getLocalName(), reader.getLocation());
+                    }
+                    parseSocketBindingGroupRef(reader, serverAddress, list);
+                    sawSocketBinding = true;
+                    break;
+                }
+                case SYSTEM_PROPERTIES: {
+                    if (sawSystemProperties) {
+                        throw MESSAGES.alreadyDefined(element.getLocalName(), reader.getLocation());
+                    }
+                    parseSystemProperties(reader, serverAddress, expectedNs, list, false);
+                    sawSystemProperties = true;
+                    break;
+                }
+                default:
+                    throw unexpectedElement(reader);
+            }
+        }
+
+    }
+
+    private ModelNode parseServerAttributes(final XMLExtendedStreamReader reader, final ModelNode parentAddress,
             final Set<String> serverNames) throws XMLStreamException {
         // Handle attributes
         String name = null;
@@ -615,65 +891,34 @@ public class HostXml extends CommonXml {
         if (start != null) {
             addUpdate.get(AUTO_START).set(start.booleanValue());
         }
-        list.add(addUpdate);
-
-        // Handle elements
-        boolean sawJvm = false;
-        boolean sawSystemProperties = false;
-        boolean sawSocketBinding = false;
-        final Set<String> interfaceNames = new HashSet<String>();
-        while (reader.hasNext() && reader.nextTag() != END_ELEMENT) {
-            requireNamespace(reader, expectedNs);
-            final Element element = Element.forName(reader.getLocalName());
-            switch (element) {
-                case INTERFACE_SPECS: {
-                    parseInterfaces(reader, interfaceNames, address, expectedNs, list, true);
-                    break;
-                }
-                case JVM: {
-                    if (sawJvm) {
-                        throw MESSAGES.alreadyDefined(element.getLocalName(), reader.getLocation());
-                    }
-
-                    parseJvm(reader, address, expectedNs, list, new HashSet<String>(), true);
-                    sawJvm = true;
-                    break;
-                }
-                case PATHS: {
-                    parsePaths(reader, address, expectedNs, list, true);
-                    break;
-                }
-                case SOCKET_BINDING_GROUP: {
-                    if (sawSocketBinding) {
-                        throw MESSAGES.alreadyDefined(element.getLocalName(), reader.getLocation());
-                    }
-                    parseSocketBindingGroupRef(reader, address, list);
-                    sawSocketBinding = true;
-                    break;
-                }
-                case SYSTEM_PROPERTIES: {
-                    if (sawSystemProperties) {
-                        throw MESSAGES.alreadyDefined(element.getLocalName(), reader.getLocation());
-                    }
-                    parseSystemProperties(reader, address, expectedNs, list, false);
-                    sawSystemProperties = true;
-                    break;
-                }
-                default:
-                    throw unexpectedElement(reader);
-            }
-        }
-
+        return addUpdate;
     }
 
-    /**
-     * Overrides the CommonXML implementation of parseNativeRemotingManagementInterface_1_1 to mark unexpected in
-     * host.xml parsing.
-     */
-    // TODO - This still needs to be properly represented in the schema.
-    @Override
-    protected void parseNativeRemotingManagementInterface_1_1(XMLExtendedStreamReader reader, ModelNode address, List<ModelNode> list) throws XMLStreamException {
-        throw unexpectedElement(reader);
+    protected void writeNativeManagementProtocol(final XMLExtendedStreamWriter writer, final ModelNode protocol)
+            throws XMLStreamException {
+
+        writer.writeStartElement(Element.NATIVE_INTERFACE.getLocalName());
+        NativeManagementResourceDefinition.SECURITY_REALM.marshallAsAttribute(protocol, writer);
+
+        writer.writeEmptyElement(Element.SOCKET.getLocalName());
+        NativeManagementResourceDefinition.INTERFACE.marshallAsAttribute(protocol, writer);
+        NativeManagementResourceDefinition.NATIVE_PORT.marshallAsAttribute(protocol, writer);
+
+        writer.writeEndElement();
+    }
+
+    protected void writeHttpManagementProtocol(final XMLExtendedStreamWriter writer, final ModelNode protocol)
+            throws XMLStreamException {
+
+        writer.writeStartElement(Element.HTTP_INTERFACE.getLocalName());
+        HttpManagementResourceDefinition.SECURITY_REALM.marshallAsAttribute(protocol, writer);
+
+        writer.writeEmptyElement(Element.SOCKET.getLocalName());
+        HttpManagementResourceDefinition.INTERFACE.marshallAsAttribute(protocol, writer);
+        HttpManagementResourceDefinition.HTTP_PORT.marshallAsAttribute(protocol, writer);
+        HttpManagementResourceDefinition.HTTPS_PORT.marshallAsAttribute(protocol, writer);
+
+        writer.writeEndElement();
     }
 
     private void writeDomainController(final XMLExtendedStreamWriter writer, final ModelNode modelNode)

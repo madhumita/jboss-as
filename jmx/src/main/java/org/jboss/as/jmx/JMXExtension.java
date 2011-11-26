@@ -44,6 +44,7 @@ import org.jboss.as.controller.PathAddress;
 import org.jboss.as.controller.SubsystemRegistration;
 import org.jboss.as.controller.descriptions.DescriptionProvider;
 import org.jboss.as.controller.descriptions.common.CommonDescriptions;
+import org.jboss.as.controller.operations.common.GenericSubsystemDescribeHandler;
 import org.jboss.as.controller.parsing.ExtensionParsingContext;
 import org.jboss.as.controller.parsing.ParseUtils;
 import org.jboss.as.controller.persistence.SubsystemMarshallingContext;
@@ -64,8 +65,11 @@ import org.jboss.staxmapper.XMLExtendedStreamWriter;
 public class JMXExtension implements Extension {
 
     public static final String SUBSYSTEM_NAME = "jmx";
+    private static final String INVOKE_MBEAN_RAW = "invoke-mbean-raw";
+    private static final String GET_MBEAN_INFO_RAW = "get-mbean-info-raw";
 
     static final JMXSubsystemParser parsers = new JMXSubsystemParser();
+
 
     /** {@inheritDoc} */
     @Override
@@ -74,6 +78,8 @@ public class JMXExtension implements Extension {
         final ManagementResourceRegistration registration = subsystem.registerSubsystemModel(JMXSubsystemProviders.SUBSYSTEM);
         // Subsystem operation handlers
         registration.registerOperationHandler(ADD, JMXSubsystemAdd.INSTANCE, JMXSubsystemProviders.SUBSYTEM_ADD, false);
+        registration.registerOperationHandler(INVOKE_MBEAN_RAW, new InvokeMBeanRaw(), JMXSubsystemProviders.INVOKE_MBEAN_RAW, false);
+        registration.registerOperationHandler(GET_MBEAN_INFO_RAW, new GetMBeanInfoRaw(), JMXSubsystemProviders.GET_MBEAN_INFO_RAW, false);
         registration.registerOperationHandler(DESCRIBE, JMXDescribeHandler.INSTANCE, JMXDescribeHandler.INSTANCE, false, OperationEntry.EntryType.PRIVATE);
         registration.registerOperationHandler(JMXConnectorAdd.OPERATION_NAME, JMXConnectorAdd.INSTANCE, JMXSubsystemProviders.JMX_CONNECTOR_ADD, false);
         registration.registerOperationHandler(JMXConnectorRemove.OPERATION_NAME, JMXConnectorRemove.INSTANCE, JMXSubsystemProviders.JMX_CONNECTOR_REMOVE, false);
@@ -191,23 +197,18 @@ public class JMXExtension implements Extension {
         public void writeContent(XMLExtendedStreamWriter writer, SubsystemMarshallingContext context) throws XMLStreamException {
             Namespace schemaVer = Namespace.CURRENT;
             ModelNode node = context.getModelNode();
-            if(node.has(CommonAttributes.SERVER_BINDING)) {
-                context.startSubsystemElement(schemaVer.getUriString(), false);
-                if (node.hasDefined(CommonAttributes.SHOW_MODEL)) {
-                    writer.writeAttribute(Attribute.SHOW_MODEL.getLocalName(), node.get(CommonAttributes.SHOW_MODEL).asString());
-                }
+
+            context.startSubsystemElement(schemaVer.getUriString(), false);
+            if (node.hasDefined(CommonAttributes.SHOW_MODEL)) {
+                writer.writeAttribute(Attribute.SHOW_MODEL.getLocalName(), node.get(CommonAttributes.SHOW_MODEL).asString());
+            }
+            if (node.hasDefined(CommonAttributes.SERVER_BINDING)) {
                 writer.writeStartElement(Element.JMX_CONNECTOR.getLocalName());
-                writer.writeAttribute(Attribute.SERVER_BINDING.getLocalName(), node.get(CommonAttributes.SERVER_BINDING).asString());
                 writer.writeAttribute(Attribute.REGISTRY_BINDING.getLocalName(), node.get(CommonAttributes.REGISTRY_BINDING).asString());
-                writer.writeEndElement();
-                writer.writeEndElement();
-            }
-            else {
-                //TODO seems to be a problem with empty elements cleaning up the queue in FormattingXMLStreamWriter.runAttrQueue
-                //context.startSubsystemElement(NewNamingExtension.NAMESPACE, true);
-                context.startSubsystemElement(schemaVer.getUriString(), false);
+                writer.writeAttribute(Attribute.SERVER_BINDING.getLocalName(), node.get(CommonAttributes.SERVER_BINDING).asString());
                 writer.writeEndElement();
             }
+            writer.writeEndElement();
         }
     }
 
@@ -217,7 +218,9 @@ public class JMXExtension implements Extension {
         public void execute(OperationContext context, ModelNode operation) throws OperationFailedException {
             final ModelNode model = context.readModel(PathAddress.EMPTY_ADDRESS);
             context.getResult().add(createAddOperation(model.hasDefined(CommonAttributes.SHOW_MODEL) ? model.get(CommonAttributes.SHOW_MODEL).asBoolean() : null));
-            context.getResult().add(createAddConnectorOperation(model.require(CommonAttributes.SERVER_BINDING).asString(), model.require(CommonAttributes.REGISTRY_BINDING).asString()));
+            if (model.hasDefined(CommonAttributes.SERVER_BINDING)) {
+                context.getResult().add(createAddConnectorOperation(model.require(CommonAttributes.SERVER_BINDING).asString(), model.require(CommonAttributes.REGISTRY_BINDING).asString()));
+            }
             context.completeStep();
         }
 

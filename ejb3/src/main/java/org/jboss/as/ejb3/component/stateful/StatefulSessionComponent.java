@@ -31,10 +31,6 @@ import javax.ejb.AccessTimeout;
 import javax.ejb.EJBLocalObject;
 import javax.ejb.EJBObject;
 import javax.ejb.TimerService;
-import javax.transaction.RollbackException;
-import javax.transaction.Synchronization;
-import javax.transaction.SystemException;
-import javax.transaction.Transaction;
 
 import org.jboss.as.ee.component.BasicComponentInstance;
 import org.jboss.as.ee.component.Component;
@@ -60,8 +56,8 @@ import org.jboss.invocation.SimpleInterceptorFactoryContext;
 import org.jboss.logging.Logger;
 import org.jboss.msc.service.ServiceController;
 import org.jboss.msc.service.StopContext;
-import org.jboss.tm.TxUtils;
-
+import static org.jboss.as.ejb3.EjbMessages.MESSAGES;
+import static org.jboss.as.ejb3.EjbLogger.ROOT_LOGGER;
 
 /**
  * Stateful Session Bean
@@ -71,6 +67,7 @@ import org.jboss.tm.TxUtils;
 public class StatefulSessionComponent extends SessionBeanComponent {
 
     public static final Object SESSION_ID_REFERENCE_KEY = new Object();
+
 
     private static final Logger logger = Logger.getLogger(StatefulSessionComponent.class);
 
@@ -128,7 +125,7 @@ public class StatefulSessionComponent extends SessionBeanComponent {
 
     public <T> T getBusinessObject(Class<T> businessInterface, final InterceptorContext context) throws IllegalStateException {
         if (businessInterface == null) {
-            throw new IllegalStateException("Business interface type cannot be null");
+            throw MESSAGES.businessInterfaceIsNull();
         }
         return createViewInstanceProxy(businessInterface, Collections.<Object, Object>singletonMap(SessionID.SESSION_ID_KEY, getSessionIdOf(context)));
     }
@@ -142,16 +139,17 @@ public class StatefulSessionComponent extends SessionBeanComponent {
 
     public EJBObject getEJBObject(final InterceptorContext ctx) throws IllegalStateException {
         if (getEjbObjectView() == null) {
-            throw new IllegalStateException("Bean " + getComponentName() + " does not have an EJBObject");
+            throw MESSAGES.beanComponentMissingEjbObject(getComponentName(),"EJBObject");
         }
         final ServiceController<?> serviceController = CurrentServiceContainer.getServiceContainer().getRequiredService(getEjbObjectView());
         final ComponentView view = (ComponentView) serviceController.getValue();
-        return EJBClient.createProxy(new StatefulEJBLocator<EJBObject>((Class<EJBObject>) view.getViewClass(), getApplicationName(), getModuleName(), getComponentName(), getDistinctName(), getSessionIdOf(ctx)));
+        final String locatorAppName = getEarApplicationName() == null ? "" : getEarApplicationName();
+        return EJBClient.createProxy(new StatefulEJBLocator<EJBObject>((Class<EJBObject>) view.getViewClass(), locatorAppName, getModuleName(), getComponentName(), getDistinctName(), getSessionIdOf(ctx)));
     }
 
     @Override
     public TimerService getTimerService() throws IllegalStateException {
-        throw new IllegalStateException("TimerService is not supported for Stateful session bean " + this.getComponentName());
+        throw MESSAGES.timerServiceNotSupportedForSFSB(this.getComponentName());
     }
 
     /**
@@ -199,28 +197,8 @@ public class StatefulSessionComponent extends SessionBeanComponent {
      * @param sessionId The session id
      */
     public void removeSession(final SessionID sessionId) {
-        Transaction currentTx = null;
-        try {
-            currentTx = getTransactionManager().getTransaction();
-        } catch (SystemException e) {
-            throw new RuntimeException(e);
-        }
-
-        if (currentTx != null && TxUtils.isActive(currentTx)) {
-            try {
-                // A transaction is in progress, so register a Synchronization so that the session can be removed on tx
-                // completion.
-                currentTx.registerSynchronization(new RemoveSynchronization(this, sessionId));
-            } catch (RollbackException e) {
-                throw new RuntimeException(e);
-            } catch (SystemException e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            // no tx currently in progress, so just remove the session
-            getCache().remove(sessionId);
-        }
-
+        //The cache takes care of the transactional behavoir
+        getCache().remove(getTransactionManager(), sessionId);
     }
 
     public InterceptorFactory getAfterBegin() {
@@ -245,46 +223,6 @@ public class StatefulSessionComponent extends SessionBeanComponent {
 
     public Method getBeforeCompletionMethod() {
         return beforeCompletionMethod;
-    }
-
-    /**
-     * A {@link javax.transaction.Synchronization} which removes a stateful session in it's {@link javax.transaction.Synchronization#afterCompletion(int)}
-     * callback.
-     */
-    private static class RemoveSynchronization implements Synchronization {
-        private final StatefulSessionComponent statefulComponent;
-        private final SessionID sessionId;
-
-        public RemoveSynchronization(final StatefulSessionComponent component, final SessionID sessionId) {
-            if (sessionId == null) {
-                throw new IllegalArgumentException("Session id cannot be null");
-            }
-            if (component == null) {
-                throw new IllegalArgumentException("Stateful component cannot be null");
-            }
-            this.sessionId = sessionId;
-            this.statefulComponent = component;
-
-        }
-
-        public void beforeCompletion() {
-        }
-
-        public void afterCompletion(int status) {
-            try {
-                // remove the session
-                this.statefulComponent.getCache().remove(this.sessionId);
-            } catch (Throwable t) {
-                // An exception thrown from afterCompletion is gobbled up
-                logger.error("Failed to remove bean: " + this.statefulComponent.getComponentName() + " with session id " + this.sessionId, t);
-                if (t instanceof Error)
-                    throw (Error) t;
-                if (t instanceof RuntimeException)
-                    throw (RuntimeException) t;
-                throw new RuntimeException(t);
-            }
-        }
-
     }
 
     @Override

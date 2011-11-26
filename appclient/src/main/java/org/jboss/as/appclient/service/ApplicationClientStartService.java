@@ -22,7 +22,6 @@
 package org.jboss.as.appclient.service;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -38,6 +37,7 @@ import org.jboss.as.ee.component.ComponentInstance;
 import org.jboss.as.ee.naming.InjectedEENamespaceContextSelector;
 import org.jboss.as.naming.context.NamespaceContextSelector;
 import org.jboss.as.server.CurrentServiceContainer;
+import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.remoting.IoFutureHelper;
 import org.jboss.msc.service.Service;
@@ -112,6 +112,7 @@ public class ApplicationClientStartService implements Service<ApplicationClientS
 
                                     final EJBClientContext ejbClientContext = EJBClientContext.create();
                                     ejbClientContext.registerConnection(connection);
+                                    final ContextSelector<EJBClientContext> previousSelector = EJBClientContext.setConstantContext(ejbClientContext);
                                     applicationClientDeploymentServiceInjectedValue.getValue().getDeploymentCompleteLatch().await();
 
                                     try {
@@ -121,13 +122,12 @@ public class ApplicationClientStartService implements Service<ApplicationClientS
                                         instance = applicationClientComponent.getValue().createInstance();
                                         mainMethod.invoke(null, new Object[]{parameters});
                                     } finally {
+                                        if (previousSelector != null) {
+                                            EJBClientContext.setSelector(previousSelector);
+                                        }
                                         NamespaceContextSelector.popCurrentSelector();
                                     }
-                                } catch (InvocationTargetException e) {
-                                    ROOT_LOGGER.caughtException(e.getTargetException(), e.getTargetException());
-                                } catch (IllegalAccessException e) {
-                                    ROOT_LOGGER.exceptionRunningAppClient(e, e.getClass().getSimpleName());
-                                } catch (InterruptedException e) {
+                                }  catch (Exception e) {
                                     ROOT_LOGGER.exceptionRunningAppClient(e, e.getClass().getSimpleName());
                                 } finally {
                                     SecurityActions.setContextClassLoader(oldTccl);
@@ -154,9 +154,11 @@ public class ApplicationClientStartService implements Service<ApplicationClientS
 
     @Override
     public synchronized void stop(final StopContext context) {
+        if(instance != null) {
+            instance.destroy();
+        }
         thread.interrupt();
         thread = null;
-        instance.destroy();
     }
 
     @Override

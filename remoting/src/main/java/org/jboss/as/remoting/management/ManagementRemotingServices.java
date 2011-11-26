@@ -33,7 +33,6 @@ import org.jboss.as.controller.ServiceVerificationHandler;
 import org.jboss.as.controller.remote.AbstractModelControllerOperationHandlerFactoryService;
 import org.jboss.as.controller.remote.ManagementOperationHandlerFactory;
 import org.jboss.as.controller.remote.ModelControllerClientOperationHandlerFactoryService;
-import org.jboss.as.network.NetworkInterfaceBinding;
 import org.jboss.as.remoting.EndpointService;
 import org.jboss.as.remoting.RemotingServices;
 import org.jboss.msc.service.ServiceBuilder;
@@ -89,10 +88,10 @@ public final class ManagementRemotingServices extends RemotingServices {
      */
     public static void reinstallDomainConnectorServices(final OperationContext operationContext,
             final ServiceName endpointName,
-            final NetworkInterfaceBinding networkInterfaceBinding,
+            final ServiceName networkInterfaceBinding,
             final int port,
             final ServiceName securityRealmName) {
-        removeConnectorServices(operationContext, MANAGEMENT_CONNECTOR,  port);
+        removeConnectorServices(operationContext, MANAGEMENT_CONNECTOR);
         installDomainConnectorServices(operationContext.getServiceTarget(), endpointName, networkInterfaceBinding, port, securityRealmName, null, null);
     }
 
@@ -108,13 +107,15 @@ public final class ManagementRemotingServices extends RemotingServices {
      */
     public static void installDomainConnectorServices(final ServiceTarget serviceTarget,
                                                       final ServiceName endpointName,
-                                                      final NetworkInterfaceBinding networkInterfaceBinding,
+                                                      final ServiceName networkInterfaceBinding,
                                                       final int port,
                                                       final ServiceName securityRealmName,
                                                       final ServiceVerificationHandler verificationHandler,
                                                       final List<ServiceController<?>> newControllers) {
         ServiceName serverCallbackService = ServiceName.JBOSS.append("host", "controller", "server-inventory", "callback");
-        installConnectorServicesForNetworkInterfaceBinding(serviceTarget, endpointName, MANAGEMENT_CONNECTOR, networkInterfaceBinding, port, securityRealmName, serverCallbackService, verificationHandler, newControllers);
+        ServiceName tmpDirPath = ServiceName.JBOSS.append("server", "path", "jboss.home.dir");
+        installSecurityServices(serviceTarget, MANAGEMENT_CONNECTOR, securityRealmName, serverCallbackService, tmpDirPath, verificationHandler, newControllers);
+        installConnectorServicesForNetworkInterfaceBinding(serviceTarget, endpointName, MANAGEMENT_CONNECTOR, networkInterfaceBinding, port, OptionMap.EMPTY, verificationHandler, newControllers);
     }
 
     /**
@@ -134,7 +135,10 @@ public final class ManagementRemotingServices extends RemotingServices {
             final ServiceName securityRealmName,
             final ServiceVerificationHandler verificationHandler,
             final List<ServiceController<?>> newControllers) {
-        installConnectorServicesForNetworkInterfaceBinding(serviceTarget, endpointName, MANAGEMENT_CONNECTOR, networkInterfaceBindingName, port, securityRealmName, null, verificationHandler, newControllers);
+        ServiceName tmpDirPath = ServiceName.JBOSS.append("server", "path", "jboss.home.dir");
+        installSecurityServices(serviceTarget, MANAGEMENT_CONNECTOR, securityRealmName, null, tmpDirPath, verificationHandler,
+                newControllers);
+        installConnectorServicesForNetworkInterfaceBinding(serviceTarget, endpointName, MANAGEMENT_CONNECTOR, networkInterfaceBindingName, port, OptionMap.EMPTY, verificationHandler, newControllers);
     }
 
     /**
@@ -163,6 +167,10 @@ public final class ManagementRemotingServices extends RemotingServices {
         addController(newControllers, verificationHandler, builder);
     }
 
+    public static void removeManagementChannelOpenListenerService(final OperationContext context, final ServiceName endpointName, final String channelName) {
+        context.removeService(RemotingServices.channelServiceName(endpointName, channelName));
+    }
+
     /**
      * Set up the services to create a channel listener and operation handler service.
      *
@@ -189,5 +197,12 @@ public final class ManagementRemotingServices extends RemotingServices {
         addController(newControllers, verificationHandler, builder);
 
         installManagementChannelOpenListenerService(serviceTarget, endpointName, channelName, operationHandlerName, verificationHandler, newControllers);
+    }
+
+    public static void removeManagementChannelServices(final OperationContext context, final ServiceName endpointName,
+                                                       final String channelName) {
+        removeManagementChannelOpenListenerService(context, endpointName, channelName);
+        final ServiceName operationHandlerName = endpointName.append(channelName).append(ModelControllerClientOperationHandlerFactoryService.OPERATION_HANDLER_NAME_SUFFIX);
+        context.removeService(operationHandlerName);
     }
 }

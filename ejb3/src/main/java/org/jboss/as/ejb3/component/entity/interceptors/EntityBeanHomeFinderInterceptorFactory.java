@@ -30,8 +30,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
-import javax.ejb.ObjectNotFoundException;
-
 import org.jboss.as.ee.component.Component;
 import org.jboss.as.ee.component.ComponentInstance;
 import org.jboss.as.ee.component.ComponentView;
@@ -42,6 +40,8 @@ import org.jboss.invocation.InterceptorContext;
 import org.jboss.invocation.InterceptorFactory;
 import org.jboss.invocation.InterceptorFactoryContext;
 import org.jboss.msc.value.InjectedValue;
+
+import static org.jboss.as.ejb3.EjbMessages.MESSAGES;
 
 /**
  * Interceptor that hooks up finder methods for BMP entity beans
@@ -97,7 +97,7 @@ public class EntityBeanHomeFinderInterceptorFactory implements InterceptorFactor
         };
     }
 
-    protected Object prepareResults(final InterceptorContext context, final Object result, final EntityBeanComponent component) throws ObjectNotFoundException {
+    protected Object prepareResults(final InterceptorContext context, final Object result, final EntityBeanComponent component) throws Exception {
         switch (returnType) {
             case COLLECTION: {
                 Collection keys = (Collection) result;
@@ -134,7 +134,7 @@ public class EntityBeanHomeFinderInterceptorFactory implements InterceptorFactor
             }
             default: {
                 if (result == null) {
-                    throw new ObjectNotFoundException("Could not find entity from " + finderMethod + " with params " + Arrays.toString(context.getParameters()));
+                    throw MESSAGES.couldNotFindEntity(finderMethod,Arrays.toString(context.getParameters()));
                 }
                 return getLocalObject(result);
             }
@@ -155,7 +155,7 @@ public class EntityBeanHomeFinderInterceptorFactory implements InterceptorFactor
         }
     }
 
-    protected Object getLocalObject(final Object result) {
+    protected Object getLocalObject(final Object result) throws Exception {
         final HashMap<Object, Object> create = new HashMap<Object, Object>();
         create.put(EntityBeanComponent.PRIMARY_KEY_CONTEXT_KEY, result);
         return viewToCreate.getValue().createInstance(create).getInstance();

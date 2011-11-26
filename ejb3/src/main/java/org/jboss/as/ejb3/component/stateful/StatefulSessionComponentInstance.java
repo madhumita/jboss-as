@@ -34,6 +34,7 @@ import javax.ejb.EJBException;
 import org.jboss.as.ee.component.Component;
 import org.jboss.as.ee.component.ComponentInstance;
 import org.jboss.as.ejb3.cache.Identifiable;
+import org.jboss.as.ejb3.component.InvokeMethodOnTargetInterceptor;
 import org.jboss.as.ejb3.component.session.SessionBeanComponentInstance;
 import org.jboss.as.naming.ManagedReference;
 import org.jboss.ejb.client.SessionID;
@@ -74,15 +75,30 @@ public class StatefulSessionComponentInstance extends SessionBeanComponentInstan
     }
 
     protected void afterBegin() {
-        execute(afterBegin, getComponent().getAfterBeginMethod());
+        CurrentSynchronizationCallback.set(CurrentSynchronizationCallback.CallbackType.AFTER_BEGIN);
+        try {
+            execute(afterBegin, getComponent().getAfterBeginMethod());
+        } finally {
+            CurrentSynchronizationCallback.clear();
+        }
     }
 
     protected void afterCompletion(boolean committed) {
-        execute(afterCompletion, getComponent().getAfterCompletionMethod(), committed);
+        CurrentSynchronizationCallback.set(CurrentSynchronizationCallback.CallbackType.AFTER_COMPLETION);
+        try {
+            execute(afterCompletion, getComponent().getAfterCompletionMethod(), committed);
+        } finally {
+            CurrentSynchronizationCallback.clear();
+        }
     }
 
     protected void beforeCompletion() {
-        execute(beforeCompletion, getComponent().getBeforeCompletionMethod());
+        CurrentSynchronizationCallback.set(CurrentSynchronizationCallback.CallbackType.BEFORE_COMPLETION);
+        try {
+            execute(beforeCompletion, getComponent().getBeforeCompletionMethod());
+        } finally {
+            CurrentSynchronizationCallback.clear();
+        }
     }
 
     protected void discard() {
@@ -120,5 +136,10 @@ public class StatefulSessionComponentInstance extends SessionBeanComponentInstan
 
     public SessionID getId() {
         return id;
+    }
+
+    @Override
+    public String toString() {
+        return " Instance of " + getComponent().getComponentName() + " {" + id + "}";
     }
 }

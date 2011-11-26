@@ -30,7 +30,7 @@
     <parent>
         <groupId>org.jboss.as</groupId>
         <artifactId>jboss-as-parent</artifactId>
-        <version>7.1.0.Alpha2-SNAPSHOT</version>
+        <version>7.1.0.CR1-SNAPSHOT</version>
     </parent>
 
     <artifactId>jboss-as-build</artifactId>
@@ -154,6 +154,11 @@
         </dependency>
 
         <dependency>
+            <groupId>commons-pool</groupId>
+            <artifactId>commons-pool</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>dom4j</groupId>
             <artifactId>dom4j</artifactId>
         </dependency>
@@ -231,11 +236,6 @@
         <dependency>
             <groupId>joda-time</groupId>
             <artifactId>joda-time</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>juddi</groupId>
-            <artifactId>juddi</artifactId>
         </dependency>
 
         <dependency>
@@ -604,6 +604,21 @@
 
         <dependency>
             <groupId>org.infinispan</groupId>
+            <artifactId>infinispan-cachestore-jdbc</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.infinispan</groupId>
+            <artifactId>infinispan-cachestore-remote</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.infinispan</groupId>
+            <artifactId>infinispan-client-hotrod</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.infinispan</groupId>
             <artifactId>infinispan-core</artifactId>
         </dependency>
 
@@ -720,7 +735,12 @@
 
         <dependency>
             <groupId>org.jboss.as</groupId>
-            <artifactId>jboss-as-domain-http-api</artifactId>
+            <artifactId>jboss-as-domain-http-error-context</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jboss.as</groupId>
+            <artifactId>jboss-as-domain-http-interface</artifactId>
         </dependency>
 
         <dependency>
@@ -771,11 +791,6 @@
         <dependency>
             <groupId>org.jboss.as</groupId>
             <artifactId>jboss-as-jacorb</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.jboss.as</groupId>
-            <artifactId>jboss-as-jaxr</artifactId>
         </dependency>
 
         <dependency>

@@ -33,6 +33,7 @@ import org.jacorb.ssl.SSLPolicyValue;
 import org.jacorb.ssl.SSLPolicyValueHelper;
 import org.jboss.as.ee.component.ComponentView;
 import org.jboss.as.ejb3.component.EJBComponent;
+import org.jboss.as.ejb3.component.EJBMetaDataImp;
 import org.jboss.as.ejb3.component.entity.EntityBeanComponent;
 import org.jboss.as.ejb3.component.stateless.StatelessSessionComponent;
 import org.jboss.as.ejb3.deployment.DeploymentRepository;
@@ -143,7 +144,7 @@ public class EjbIIOPService implements Service<EjbIIOPService> {
     /**
      * <code>EJBMetaData</code> the enterprise bean in the container.
      */
-    private EJBMetaDataImplIIOP ejbMetaData;
+    private EJBMetaDataImp ejbMetaData;
 
     /**
      * Mapping from bean methods to <code>SkeletonStrategy</code> instances.
@@ -244,11 +245,15 @@ public class EjbIIOPService implements Service<EjbIIOPService> {
             final boolean interfaceRepositorySupported = false;
 
             final EJBComponent component = ejbComponentInjectedValue.getValue();
+            final String earApplicationName = component.getEarApplicationName();
             if (component.getDistinctName() == null || component.getDistinctName().isEmpty()) {
-                name = component.getApplicationName() + "/" + component.getModuleName() + "/" + component.getComponentName();
+                name = earApplicationName == null  || earApplicationName.isEmpty() ? "" : earApplicationName + "/";
+                name = name + component.getModuleName() + "/" + component.getComponentName();
             } else {
-                name = component.getApplicationName() + "/" + component.getModuleName() + "/" + component.getDistinctName() + "/" + component.getComponentName();
+                name = earApplicationName == null || earApplicationName.isEmpty() ? "" : earApplicationName + "/";
+                name = name + component.getModuleName() + "/" + component.getDistinctName() + "/" + component.getComponentName();
             }
+            name = name.replace(".", "_");
             final ORB orb = this.orb.getValue();
             if (interfaceRepositorySupported) {
                 // Create a CORBA interface repository for the enterprise bean
@@ -330,16 +335,16 @@ public class EjbIIOPService implements Service<EjbIIOPService> {
                 beanServantRegistry = poaRegistry.getValue().getRegistryWithPersistentPOAPerServant();
                 final EntityBeanComponent entityBeanComponent = (EntityBeanComponent) component;
                 final Class pkClass = entityBeanComponent.getPrimaryKeyClass();
-                ejbMetaData = new EJBMetaDataImplIIOP(entityBeanComponent.getRemoteClass(), entityBeanComponent.getHomeClass(), pkClass, false, false, ejbHome);
+                ejbMetaData = new EJBMetaDataImp(entityBeanComponent.getRemoteClass(), entityBeanComponent.getHomeClass(), pkClass, false, false, ejbHome);
             } else {
                 // This is a session bean (lifespan: transient)
                 beanServantRegistry = poaRegistry.getValue().getRegistryWithTransientPOAPerServant();
                 if (component instanceof StatelessSessionComponent) {
                     // Stateless session bean
-                    ejbMetaData = new EJBMetaDataImplIIOP(remoteView.getValue().getViewClass(), homeView.getValue().getViewClass(), null, true, true, ejbHome);
+                    ejbMetaData = new EJBMetaDataImp(remoteView.getValue().getViewClass(), homeView.getValue().getViewClass(), null, true, true, ejbHome);
                 } else {
                     // Stateful session bean
-                    ejbMetaData = new EJBMetaDataImplIIOP(remoteView.getValue().getViewClass(), homeView.getValue().getViewClass(), null, true, false, ejbHome);
+                    ejbMetaData = new EJBMetaDataImp(remoteView.getValue().getViewClass(), homeView.getValue().getViewClass(), null, true, false, ejbHome);
                 }
             }
 
@@ -411,8 +416,9 @@ public class EjbIIOPService implements Service<EjbIIOPService> {
     public Object referenceForLocator(final EJBLocator<? extends Object> locator) {
         final EJBComponent ejbComponent = ejbComponentInjectedValue.getValue();
         try {
+            final String earApplicationName = ejbComponent.getEarApplicationName() == null ? "" : ejbComponent.getEarApplicationName();
             if (locator.getBeanName().equals(ejbComponent.getComponentName()) &&
-                    locator.getAppName().equals(ejbComponent.getApplicationName()) &&
+                    locator.getAppName().equals(earApplicationName) &&
                     locator.getModuleName().equals(ejbComponent.getModuleName()) &&
                     locator.getDistinctName().equals(ejbComponent.getDistinctName())) {
                 if (locator instanceof EJBHomeLocator) {

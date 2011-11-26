@@ -39,6 +39,7 @@ import org.jboss.as.ee.component.EEModuleConfiguration;
 import org.jboss.as.ee.component.EEModuleDescription;
 import org.jboss.as.ee.component.InjectionSource;
 import org.jboss.as.ee.component.InterceptorDescription;
+import org.jboss.as.ee.metadata.MetadataCompleteMarker;
 import org.jboss.as.naming.ManagedReferenceFactory;
 import org.jboss.as.naming.ServiceBasedNamingStore;
 import org.jboss.as.naming.deployment.ContextNames;
@@ -50,12 +51,15 @@ import org.jboss.as.server.deployment.DeploymentUnitProcessingException;
 import org.jboss.as.server.deployment.DeploymentUnitProcessor;
 import org.jboss.as.server.deployment.reflect.ClassIndex;
 import org.jboss.as.server.deployment.reflect.DeploymentClassIndex;
-import org.jboss.logging.Logger;
 import org.jboss.msc.service.AbstractServiceListener;
+import org.jboss.msc.service.CircularDependencyException;
 import org.jboss.msc.service.DuplicateServiceException;
 import org.jboss.msc.service.ServiceBuilder;
 import org.jboss.msc.service.ServiceController;
 import org.jboss.msc.service.ServiceName;
+
+import static org.jboss.as.ee.EeLogger.ROOT_LOGGER;
+import static org.jboss.as.ee.EeMessages.MESSAGES;
 
 /**
  * Processor that sets up JNDI bindings that are owned by the module. It also handles class level jndi bindings
@@ -67,9 +71,6 @@ import org.jboss.msc.service.ServiceName;
  * @author Stuart Douglas
  */
 public class ModuleJndiBindingProcessor implements DeploymentUnitProcessor {
-
-
-    private static final Logger logger = Logger.getLogger(ModuleJndiBindingProcessor.class);
 
     private static class IntHolder {
         private int value = 0;
@@ -134,7 +135,7 @@ public class ModuleJndiBindingProcessor implements DeploymentUnitProcessor {
                     final ClassIndex interceptorClass = classIndex.classIndex(interceptor.getInterceptorClassName());
                     classConfigurations.add(interceptorClass.getModuleClass());
                 } catch (ClassNotFoundException e) {
-                    throw new DeploymentUnitProcessingException("Could not load interceptor class", e);
+                    throw MESSAGES.cannotLoadInterceptor(e, interceptor.getInterceptorClassName(), componentConfiguration.getComponentClass());
                 }
             }
             processClassConfigurations(phaseContext, applicationClasses, moduleConfiguration, deploymentDescriptorBindings, handledClasses, componentConfiguration.getComponentDescription().getNamingMode(), classConfigurations, componentConfiguration.getComponentName(), moduleOwnerName, moduleCount, dependencies);
@@ -151,7 +152,7 @@ public class ModuleJndiBindingProcessor implements DeploymentUnitProcessor {
                         return;
                     }
                     if (classDescription.isInvalid()) {
-                        throw new DeploymentUnitProcessingException("Component class " + classDescription.getClassName() + " for component " + componentName + " has errors: \n " + classDescription.getInvalidMessage());
+                        throw MESSAGES.componentClassHasErrors(classDescription.getClassName(), componentName, classDescription.getInvalidMessage());
                     }
                     //only process classes once
                     if (handledClasses.contains(classDescription.getClassName())) {
@@ -160,22 +161,24 @@ public class ModuleJndiBindingProcessor implements DeploymentUnitProcessor {
                     handledClasses.add(classDescription.getClassName());
                     // TODO: Should the view configuration just return a Set instead of a List? Or is there a better way to
                     // handle these duplicates?
-                    final Set<BindingConfiguration> classLevelBindings = new HashSet<BindingConfiguration>(classDescription.getBindingConfigurations());
-                    for (BindingConfiguration binding : classLevelBindings) {
-                        final String bindingName = binding.getName();
-                        final boolean compBinding = bindingName.startsWith("java:comp") || !bindingName.startsWith("java:");
-                        if (namingMode == ComponentNamingMode.CREATE && compBinding) {
-                            //components with their own comp context do their own binding
-                            continue;
-                        }
-                        final ContextNames.BindInfo bindInfo = ContextNames.bindInfoForEnvEntry(moduleConfiguration.getApplicationName(), moduleConfiguration.getModuleName(), null, false, binding.getName());
+                    if (!MetadataCompleteMarker.isMetadataComplete(phaseContext.getDeploymentUnit())) {
+                        final Set<BindingConfiguration> classLevelBindings = new HashSet<BindingConfiguration>(classDescription.getBindingConfigurations());
+                        for (BindingConfiguration binding : classLevelBindings) {
+                            final String bindingName = binding.getName();
+                            final boolean compBinding = bindingName.startsWith("java:comp") || !bindingName.startsWith("java:");
+                            if (namingMode == ComponentNamingMode.CREATE && compBinding) {
+                                //components with their own comp context do their own binding
+                                continue;
+                            }
+                            final ContextNames.BindInfo bindInfo = ContextNames.bindInfoForEnvEntry(moduleConfiguration.getApplicationName(), moduleConfiguration.getModuleName(), null, false, binding.getName());
 
-                        logger.tracef("Binding %s using service %s", binding.getName(), bindInfo.getBinderServiceName());
+                            ROOT_LOGGER.tracef("Binding %s using service %s", binding.getName(), bindInfo.getBinderServiceName());
 
-                        if (deploymentDescriptorBindings.containsKey(bindInfo.getBinderServiceName())) {
-                            continue; //this has been overridden by a DD binding
+                            if (deploymentDescriptorBindings.containsKey(bindInfo.getBinderServiceName())) {
+                                continue; //this has been overridden by a DD binding
+                            }
+                            addJndiBinding(moduleConfiguration, binding, phaseContext, bindInfo.getBinderServiceName(), ownerName, handleCount, dependencies);
                         }
-                        addJndiBinding(moduleConfiguration, binding, phaseContext, bindInfo.getBinderServiceName(), ownerName, handleCount, dependencies);
                     }
                 }
             }.run();
@@ -217,7 +220,9 @@ public class ModuleJndiBindingProcessor implements DeploymentUnitProcessor {
 
                     BinderService service = (BinderService) registered.getService();
                     if (!service.getSource().equals(bindingConfiguration.getSource()))
-                        throw new IllegalArgumentException("Incompatible conflicting binding at " + bindingName + " source: " + bindingConfiguration.getSource());
+                        throw MESSAGES.conflictingBinding(bindingName, bindingConfiguration.getSource());
+                } catch (CircularDependencyException e) {
+                    throw MESSAGES.circularDependency(bindingName);
                 }
 
             } else {
@@ -240,7 +245,7 @@ public class ModuleJndiBindingProcessor implements DeploymentUnitProcessor {
 
                     service = (BinderService) controller.getService();
                     if (!service.getSource().equals(bindingConfiguration.getSource())) {
-                        throw new IllegalArgumentException("Incompatible conflicting binding at " + bindingName + " source: " + bindingConfiguration.getSource());
+                        throw MESSAGES.conflictingBinding(bindingName, bindingConfiguration.getSource());
                     }
                     service.acquire();
                 }
@@ -252,7 +257,7 @@ public class ModuleJndiBindingProcessor implements DeploymentUnitProcessor {
             }
 
         } else {
-            throw new DeploymentUnitProcessingException("Binding name must not be null: " + bindingConfiguration);
+            throw MESSAGES.nullBindingName(bindingConfiguration);
         }
     }
 

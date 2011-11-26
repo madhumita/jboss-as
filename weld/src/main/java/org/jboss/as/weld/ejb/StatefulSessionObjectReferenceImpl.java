@@ -124,7 +124,11 @@ public class StatefulSessionObjectReferenceImpl implements SessionObjectReferenc
         if (viewServices.containsKey(businessInterfaceType.getName())) {
             final ServiceController<?> serviceController = CurrentServiceContainer.getServiceContainer().getRequiredService(viewServices.get(businessInterfaceType.getName()));
             final ComponentView view = (ComponentView) serviceController.getValue();
-            return (S) view.createInstance(Collections.<Object, Object>singletonMap(SessionID.SESSION_ID_KEY, id)).getInstance();
+            try {
+                return (S) view.createInstance(Collections.<Object, Object>singletonMap(SessionID.SESSION_ID_KEY, id)).getInstance();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         } else {
             throw new IllegalStateException("View of type " + businessInterfaceType + " not found on bean " + ejbComponent);
         }
@@ -145,12 +149,7 @@ public class StatefulSessionObjectReferenceImpl implements SessionObjectReferenc
     @Override
     public boolean isRemoved() {
         if (!removed) {
-            try {
-                ejbComponent.getCache().get(id);
-                return false;
-            } catch (NoSuchEJBException e) {
-                return true;
-            }
+            return ejbComponent.getCache().get(id) == null;
         }
         return true;
     }

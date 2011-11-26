@@ -29,6 +29,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 
 import org.jboss.as.ee.component.DeploymentDescriptorEnvironment;
+import org.jboss.as.ee.metadata.MetadataCompleteMarker;
 import org.jboss.as.ee.structure.DeploymentType;
 import org.jboss.as.ee.structure.DeploymentTypeMarker;
 import org.jboss.as.server.deployment.Attachments;
@@ -73,6 +74,9 @@ public class ApplicationClientParsingDeploymentProcessor implements DeploymentUn
             merged.setEnvironmentRefsGroupMetaData(new AppClientEnvironmentRefsGroupMetaData());
             merged.merge(jbossClientMD, appClientMD);
         }
+        if(merged.isMetadataComplete()) {
+            MetadataCompleteMarker.setMetadataComplete(deploymentUnit, true);
+        }
         deploymentUnit.putAttachment(AppClientAttachments.APPLICATION_CLIENT_META_DATA, merged);
         final DeploymentDescriptorEnvironment environment = new DeploymentDescriptorEnvironment("java:module/env/", merged.getEnvironmentRefsGroupMetaData());
         deploymentUnit.putAttachment(org.jboss.as.ee.component.Attachments.MODULE_DEPLOYMENT_DESCRIPTOR_ENVIRONMENT, environment);
@@ -100,7 +104,7 @@ public class ApplicationClientParsingDeploymentProcessor implements DeploymentUn
                 ApplicationClientMetaData data = new ApplicationClientMetaDataParser().parse(getXMLStreamReader(is));
                 return data;
             } catch (XMLStreamException e) {
-                throw MESSAGES.failedToParseXml(descriptor, e.getLocation().getLineNumber(), e.getLocation().getColumnNumber());
+                throw MESSAGES.failedToParseXml(e, descriptor, e.getLocation().getLineNumber(), e.getLocation().getColumnNumber());
             } catch (IOException e) {
                 throw new DeploymentUnitProcessingException("Failed to parse " + descriptor, e);
             } finally {
@@ -127,7 +131,7 @@ public class ApplicationClientParsingDeploymentProcessor implements DeploymentUn
                 JBossClientMetaData data = new JBossClientMetaDataParser().parse(getXMLStreamReader(is));
                 return data;
             } catch (XMLStreamException e) {
-                throw MESSAGES.failedToParseXml(appXml, e.getLocation().getLineNumber(), e.getLocation().getColumnNumber());
+                throw MESSAGES.failedToParseXml(e, appXml, e.getLocation().getLineNumber(), e.getLocation().getColumnNumber());
 
             } catch (IOException e) {
                 throw MESSAGES.failedToParseXml(e, appXml);

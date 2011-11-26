@@ -41,7 +41,7 @@ public interface ComponentView {
      *
      * @return the component view instance
      */
-    ManagedReference createInstance();
+    ManagedReference createInstance() throws Exception;
 
     /**
      * Create the component view instance using the additional context data
@@ -49,7 +49,7 @@ public interface ComponentView {
      * @param contextData Additional context data used in the view creation
      * @return the component view instance
      */
-    ManagedReference createInstance(Map<Object, Object> contextData);
+    ManagedReference createInstance(Map<Object, Object> contextData) throws Exception;
 
     /**
      * Invoke on the component view interceptor chain.
@@ -93,6 +93,13 @@ public interface ComponentView {
      * @throws IllegalArgumentException If the method cannot be found
      */
     Method getMethod(final String name, final String descriptor);
+
+    /**
+     * Provides a mechanism to attach arbitrary data to the component view
+     * @param clazz The class of attachment
+     * @return The data, or null if it is not present
+     */
+    <T> T getPrivateData(Class<T> clazz);
 
 
     boolean isAsynchronous(final Method method);
